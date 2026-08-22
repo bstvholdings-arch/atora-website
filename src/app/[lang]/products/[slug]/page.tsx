@@ -9,73 +9,70 @@ import { data } from '@/lib/data';
 import { pickLocalized } from '@/lib/i18n';
 import { getAllSettings } from '@/lib/settings';
 import { buildProductEnquiryLink, pickDisplayPrice } from '@/lib/formatters';
-
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<{ lang: string; slug: string }>;
+export async function generateMetadata({ params, }: {
+    params: Promise<{
+        lang: string;
+        slug: string;
+    }>;
 }): Promise<Metadata> {
-  const { lang: rawLang, slug } = await params;
-  const lang: Locale = (LOCALES as readonly string[]).includes(rawLang) ? (rawLang as Locale) : 'en';
-  const product = data.getProductBySlug(slug);
-  if (!product) return { title: t(lang, 'products.productNotFound') };
-  const name = pickLocalized(product as unknown as Record<string, unknown>, 'name', lang) || product.name_en;
-  return {
-    title: `${name} — ATORA`,
-    description:
-      pickLocalized(product as unknown as Record<string, unknown>, 'description', lang) ||
-      product.seo_description_en ||
-      `${name} — Aircond wholesale & parts from ATORA Malaysia.`,
-    alternates: langAlternates(`/${lang}/products/${product.slug}`),
-    openGraph: {
-      title: name,
-      description: product.seo_description_en ?? '',
-      type: 'website',
-    },
-  };
+    let _params = await params;
+    const { lang: rawLang, slug } = _params;
+    const lang: Locale = (LOCALES as readonly string[]).includes(rawLang) ? (rawLang as Locale) : 'en';
+    const product = await data.getProductBySlug(slug);
+    if (!product)
+        return { title: t(lang, 'products.productNotFound') };
+    const name = pickLocalized(product as unknown as Record<string, unknown>, 'name', lang) || product.name_en;
+    return {
+        title: `${name} — ATORA`,
+        description: pickLocalized(product as unknown as Record<string, unknown>, 'description', lang) ||
+            product.seo_description_en ||
+            `${name} — Aircond wholesale & parts from ATORA Malaysia.`,
+        alternates: langAlternates(`/${lang}/products/${product.slug}`),
+        openGraph: {
+            title: name,
+            description: product.seo_description_en ?? '',
+            type: 'website',
+        },
+    };
 }
-
-export default async function ProductDetailPage({
-  params,
-}: {
-  params: Promise<{ lang: string; slug: string }>;
+export default async function ProductDetailPage({ params, }: {
+    params: Promise<{
+        lang: string;
+        slug: string;
+    }>;
 }) {
-  const { lang: rawLang, slug } = await params;
-  const lang: Locale = (LOCALES as readonly string[]).includes(rawLang) ? (rawLang as Locale) : 'en';
-  const product = data.getProductBySlug(slug);
-  if (!product) notFound();
-
-  const s = getAllSettings();
-  const media = data.listProductMedia(product.id);
-  const brand = product.brand_id ? data.listActiveBrands().find((b) => b.id === product.brand_id) : null;
-  const category = product.category_id
-    ? data.listActiveCategories().find((c) => c.id === product.category_id)
-    : null;
-  const airconGroup = data.listCategoryGroups().find((g) => g.slug === 'air-conditioners');
-  const isAircon =
-    !!category && !!airconGroup && (category.parent_id === airconGroup.id || category.id === airconGroup.id);
-  const price = pickDisplayPrice(product);
-  const name = pickLocalized(product as unknown as Record<string, unknown>, 'name', lang) || product.name_en;
-  const desc = pickLocalized(product as unknown as Record<string, unknown>, 'description', lang) || '';
-  const primary = media.find((m) => m.is_primary) ?? media[0];
-  const gallery = media.filter((m) => m.id !== primary?.id);
-
-  const whatsappLink = buildProductEnquiryLink({
-    whatsappNumber: s.whatsapp_number,
-    productName: name,
-    brand: brand?.name_en,
-    model: product.model,
-    enquiryText: t(lang, 'common.contact'),
-  });
-
-  const stockBadge = product.stock_status === 'in_stock'
-    ? { cls: 'badge-green', text: t(lang, 'products.inStock') }
-    : product.stock_status === 'low_stock'
-      ? { cls: 'badge-yellow', text: t(lang, 'products.lowStock') }
-      : { cls: 'badge-gray', text: t(lang, 'products.outOfStock') };
-
-  return (
-    <div className="container-fluid py-8">
+    let _params = await params;
+    const { lang: rawLang, slug } = _params;
+    const lang: Locale = (LOCALES as readonly string[]).includes(rawLang) ? (rawLang as Locale) : 'en';
+    const product = await data.getProductBySlug(slug);
+    if (!product)
+        notFound();
+    const s = await getAllSettings();
+    const media = await data.listProductMedia(product.id);
+    const brand = product.brand_id ? (await data.listActiveBrands()).find((b) => b.id === product.brand_id) : null;
+    const category = product.category_id
+        ? (await data.listActiveCategories()).find((c) => c.id === product.category_id)
+        : null;
+    const airconGroup = (await data.listCategoryGroups()).find((g) => g.slug === 'air-conditioners');
+    const isAircon = !!category && !!airconGroup && (category.parent_id === airconGroup.id || category.id === airconGroup.id);
+    const price = pickDisplayPrice(product);
+    const name = pickLocalized(product as unknown as Record<string, unknown>, 'name', lang) || product.name_en;
+    const desc = pickLocalized(product as unknown as Record<string, unknown>, 'description', lang) || '';
+    const primary = media.find((m) => m.is_primary) ?? media[0];
+    const gallery = media.filter((m) => m.id !== primary?.id);
+    const whatsappLink = buildProductEnquiryLink({
+        whatsappNumber: s.whatsapp_number,
+        productName: name,
+        brand: brand?.name_en,
+        model: product.model,
+        enquiryText: t(lang, 'common.contact'),
+    });
+    const stockBadge = product.stock_status === 'in_stock'
+        ? { cls: 'badge-green', text: t(lang, 'products.inStock') }
+        : product.stock_status === 'low_stock'
+            ? { cls: 'badge-yellow', text: t(lang, 'products.lowStock') }
+            : { cls: 'badge-gray', text: t(lang, 'products.outOfStock') };
+    return (<div className="container-fluid py-8">
       {/* Breadcrumbs */}
       <nav className="text-sm text-gray-500 mb-4">
         <Link href={`/${lang}`} className="hover:text-brand-700">{t(lang, 'nav.home')}</Link>
@@ -92,35 +89,25 @@ export default async function ProductDetailPage({
         <div>
           <div className="aspect-square bg-gray-50 rounded-lg overflow-hidden border border-gray-200 mb-3">
             {primary ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={primary.url} alt={name} className="object-contain w-full h-full" />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-gray-400">No image</div>
-            )}
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={primary.url} alt={name} className="object-contain w-full h-full"/>) : (<div className="w-full h-full flex items-center justify-center text-gray-400">No image</div>)}
           </div>
-          {gallery.length > 0 && (
-            <div className="grid grid-cols-4 gap-2">
-              {gallery.slice(0, 4).map((m) => (
-                <div key={m.id} className="aspect-square bg-gray-50 rounded overflow-hidden border border-gray-200">
+          {gallery.length > 0 && (<div className="grid grid-cols-4 gap-2">
+              {gallery.slice(0, 4).map((m) => (<div key={m.id} className="aspect-square bg-gray-50 rounded overflow-hidden border border-gray-200">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={m.url} alt={name} className="object-cover w-full h-full" />
-                </div>
-              ))}
-            </div>
-          )}
+                  <img src={m.url} alt={name} className="object-cover w-full h-full"/>
+                </div>))}
+            </div>)}
         </div>
 
         {/* Details */}
         <div>
-          {brand && (
-            <Link href={`/${lang}/brands/${brand.slug}`} className="inline-flex items-center gap-2 mb-2 text-sm text-brand-600 hover:text-brand-700">
+          {brand && (<Link href={`/${lang}/brands/${brand.slug}`} className="inline-flex items-center gap-2 mb-2 text-sm text-brand-600 hover:text-brand-700">
               {brand.logo && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={brand.logo} alt={brand.name_en} className="h-5 w-auto" />
-              )}
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={brand.logo} alt={brand.name_en} className="h-5 w-auto"/>)}
               {brand.name_en}
-            </Link>
-          )}
+            </Link>)}
           <h1 className="heading-1 mb-3">{name}</h1>
 
           <div className="flex flex-wrap gap-2 mb-4">
@@ -145,37 +132,26 @@ export default async function ProductDetailPage({
 
           {/* CTAs */}
           <div className="flex flex-wrap gap-2 mb-6">
-            <a
-              href={whatsappLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn-whatsapp px-5 py-2.5 font-semibold"
-            >
+            <a href={whatsappLink} target="_blank" rel="noopener noreferrer" className="btn-whatsapp px-5 py-2.5 font-semibold">
               {t(lang, 'common.whatsappUs')} — {t(lang, 'common.getQuote')}
             </a>
             <Link href={`/${lang}/contact?product=${encodeURIComponent(name)}`} className="btn-primary px-5 py-2.5 font-semibold">
               {t(lang, 'common.getQuote')}
             </Link>
-            {s.hq_phone && (
-              <a href={`tel:${s.hq_phone.replace(/\s/g, '')}`} className="btn-secondary px-5 py-2.5 font-semibold">
+            {s.hq_phone && (<a href={`tel:${s.hq_phone.replace(/\s/g, '')}`} className="btn-secondary px-5 py-2.5 font-semibold">
                 📞 {s.hq_phone}
-              </a>
-            )}
+              </a>)}
           </div>
 
-          {desc && (
-            <div className="card p-5 mb-4">
+          {desc && (<div className="card p-5 mb-4">
               <h3 className="font-semibold text-brand-800 mb-2">{t(lang, 'products.description')}</h3>
               <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">{desc}</p>
-            </div>
-          )}
+            </div>)}
 
-          {product.specifications && (
-            <div className="card p-5">
+          {product.specifications && (<div className="card p-5">
               <h3 className="font-semibold text-brand-800 mb-2">{t(lang, 'products.specifications')}</h3>
               <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">{product.specifications}</p>
-            </div>
-          )}
+            </div>)}
         </div>
       </div>
 
@@ -187,6 +163,5 @@ export default async function ProductDetailPage({
           <a href={`tel:${s.hq_phone.replace(/\s/g, '')}`} className="btn-primary">📞 {s.hq_phone}</a>
         </div>
       </div>
-    </div>
-  );
+    </div>);
 }

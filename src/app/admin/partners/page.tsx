@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 export default async function PartnersAdminPage() {
   const admin = await getCurrentAdmin();
   if (!admin) redirect('/admin/login');
-  const partners = db.prepare('SELECT * FROM technical_partners ORDER BY display_order, company_name_en').all() as TechnicalPartner[];
+  const partners = await db.prepare('SELECT * FROM technical_partners ORDER BY display_order, company_name_en').all() as TechnicalPartner[];
   return (
     <div>
       <div className="mb-6">

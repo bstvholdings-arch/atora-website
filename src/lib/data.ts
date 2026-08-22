@@ -1,6 +1,7 @@
 /**
- * Repository layer — typed queries against the SQLite DB.
+ * Repository layer — typed queries against the PostgreSQL DB.
  * Centralised so all server components share consistent shape.
+ * All methods are async (await the underlying pg connection).
  */
 import db, {
   Brand,
@@ -60,52 +61,54 @@ const SQL = {
 
 export const data = {
   // Brands
-  listActiveBrands(): Brand[] {
-    return db.prepare(SQL.activeBrands).all() as Brand[];
+  async listActiveBrands(): Promise<Brand[]> {
+    return (await db.prepare(SQL.activeBrands).all()) as Brand[];
   },
-  listFeaturedBrands(): Brand[] {
-    return db.prepare(SQL.featuredBrands).all() as Brand[];
+  async listFeaturedBrands(): Promise<Brand[]> {
+    return (await db.prepare(SQL.featuredBrands).all()) as Brand[];
   },
-  getBrandBySlug(slug: string): Brand | null {
-    return (db.prepare(SQL.brandBySlug).get(slug) as Brand | undefined) ?? null;
+  async getBrandBySlug(slug: string): Promise<Brand | null> {
+    return (await db.prepare(SQL.brandBySlug).get(slug) as Brand | undefined) ?? null;
   },
-  listBrandProducts(brandId: number): Product[] {
-    return db.prepare(SQL.brandProducts).all(brandId) as Product[];
+  async listBrandProducts(brandId: number): Promise<Product[]> {
+    return (await db.prepare(SQL.brandProducts).all(brandId)) as Product[];
   },
 
   // Categories
-  listActiveCategories(): Category[] {
-    return db.prepare(SQL.activeCategories).all() as Category[];
+  async listActiveCategories(): Promise<Category[]> {
+    return (await db.prepare(SQL.activeCategories).all()) as Category[];
   },
-  listCategoryGroups(): Category[] {
-    return db
-      .prepare(`SELECT * FROM categories WHERE parent_id IS NULL AND status = 1 ORDER BY display_order, name_en`)
-      .all() as Category[];
+  async listCategoryGroups(): Promise<Category[]> {
+    return (
+      await db
+        .prepare(`SELECT * FROM categories WHERE parent_id IS NULL AND status = 1 ORDER BY display_order, name_en`)
+        .all()
+    ) as Category[];
   },
-  getCategoryBySlug(slug: string): Category | null {
-    return (db.prepare(SQL.categoryBySlug).get(slug) as Category | undefined) ?? null;
+  async getCategoryBySlug(slug: string): Promise<Category | null> {
+    return (await db.prepare(SQL.categoryBySlug).get(slug) as Category | undefined) ?? null;
   },
 
   // Products
-  listActiveProducts(): Product[] {
-    return db.prepare(SQL.activeProducts).all() as Product[];
+  async listActiveProducts(): Promise<Product[]> {
+    return (await db.prepare(SQL.activeProducts).all()) as Product[];
   },
-  listFeaturedProducts(limit = 8): Product[] {
-    return db.prepare(SQL.featuredProducts).all(limit) as Product[];
+  async listFeaturedProducts(limit = 8): Promise<Product[]> {
+    return (await db.prepare(SQL.featuredProducts).all(limit)) as Product[];
   },
-  getProductBySlug(slug: string): Product | null {
-    return (db.prepare(SQL.productBySlug).get(slug) as Product | undefined) ?? null;
+  async getProductBySlug(slug: string): Promise<Product | null> {
+    return (await db.prepare(SQL.productBySlug).get(slug) as Product | undefined) ?? null;
   },
-  listProductMedia(productId: number): ProductMedia[] {
-    return db.prepare(SQL.productMedia).all(productId) as ProductMedia[];
+  async listProductMedia(productId: number): Promise<ProductMedia[]> {
+    return (await db.prepare(SQL.productMedia).all(productId)) as ProductMedia[];
   },
-  searchProducts(opts: {
+  async searchProducts(opts: {
     q?: string;
     brandId?: number;
     categoryId?: number;
     groupId?: number;
     groupIds?: number[];
-  }): Product[] {
+  }): Promise<Product[]> {
     const where: string[] = ['status = 1'];
     const params: (string | number)[] = [];
     if (opts.q) {
@@ -133,85 +136,85 @@ export const data = {
       params.push(...opts.groupIds, ...opts.groupIds);
     }
     const sql = `SELECT * FROM products WHERE ${where.join(' AND ')} ORDER BY featured DESC, name_en LIMIT 200`;
-    return db.prepare(sql).all(...params) as Product[];
+    return (await db.prepare(sql).all(...params)) as Product[];
   },
 
   // Enquiries
-  listAllEnquiries(): Enquiry[] {
-    return db.prepare(SQL.enquiriesAll).all() as Enquiry[];
+  async listAllEnquiries(): Promise<Enquiry[]> {
+    return (await db.prepare(SQL.enquiriesAll).all()) as Enquiry[];
   },
-  listEnquiriesByStatus(status: string): Enquiry[] {
-    return db.prepare(SQL.enquiriesByStatus).all(status) as Enquiry[];
+  async listEnquiriesByStatus(status: string): Promise<Enquiry[]> {
+    return (await db.prepare(SQL.enquiriesByStatus).all(status)) as Enquiry[];
   },
-  getEnquiry(id: number): Enquiry | null {
-    return (db.prepare(SQL.enquiryById).get(id) as Enquiry | undefined) ?? null;
+  async getEnquiry(id: number): Promise<Enquiry | null> {
+    return (await db.prepare(SQL.enquiryById).get(id) as Enquiry | undefined) ?? null;
   },
-  countEnquiries(): number {
-    const r = db.prepare(`SELECT COUNT(*) as c FROM enquiries`).get() as { c: number };
+  async countEnquiries(): Promise<number> {
+    const r = (await db.prepare(`SELECT COUNT(*) as c FROM enquiries`).get()) as { c: number };
     return r.c;
   },
-  countEnquiriesByStatus(status: string): number {
-    const r = db.prepare(`SELECT COUNT(*) as c FROM enquiries WHERE status = ?`).get(status) as { c: number };
+  async countEnquiriesByStatus(status: string): Promise<number> {
+    const r = (await db.prepare(`SELECT COUNT(*) as c FROM enquiries WHERE status = ?`).get(status)) as { c: number };
     return r.c;
   },
-  createEnquiry(data: Omit<Enquiry, 'id' | 'created_at' | 'updated_at' | 'status'>): number {
-    const info = db
+  async createEnquiry(d: Omit<Enquiry, 'id' | 'created_at' | 'updated_at' | 'status'>): Promise<number> {
+    const info = await db
       .prepare(
         `INSERT INTO enquiries
          (type, name, phone, whatsapp, email, brand, model, quantity, message, photo_url, video_url, product_id, status, source_page)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'NEW', ?)`
       )
       .run(
-        data.type ?? 'general',
-        data.name ?? null,
-        data.phone ?? null,
-        data.whatsapp ?? null,
-        data.email ?? null,
-        data.brand ?? null,
-        data.model ?? null,
-        data.quantity ?? null,
-        data.message ?? null,
-        data.photo_url ?? null,
-        data.video_url ?? null,
-        data.product_id ?? null,
-        data.source_page ?? null
+        d.type ?? 'general',
+        d.name ?? null,
+        d.phone ?? null,
+        d.whatsapp ?? null,
+        d.email ?? null,
+        d.brand ?? null,
+        d.model ?? null,
+        d.quantity ?? null,
+        d.message ?? null,
+        d.photo_url ?? null,
+        d.video_url ?? null,
+        d.product_id ?? null,
+        d.source_page ?? null
       );
     return info.lastInsertRowid as number;
   },
-  updateEnquiryStatus(id: number, status: string): void {
-    db.prepare(`UPDATE enquiries SET status = ?, updated_at = datetime('now') WHERE id = ?`).run(status, id);
+  async updateEnquiryStatus(id: number, status: string): Promise<void> {
+    await db.prepare(`UPDATE enquiries SET status = ?, updated_at = datetime('now') WHERE id = ?`).run(status, id);
   },
-  deleteEnquiry(id: number): void {
-    db.prepare(`DELETE FROM enquiries WHERE id = ?`).run(id);
+  async deleteEnquiry(id: number): Promise<void> {
+    await db.prepare(`DELETE FROM enquiries WHERE id = ?`).run(id);
   },
 
   // Locations
-  listActiveLocations(): Location[] {
-    return db.prepare(SQL.activeLocations).all() as Location[];
+  async listActiveLocations(): Promise<Location[]> {
+    return (await db.prepare(SQL.activeLocations).all()) as Location[];
   },
-  getHqLocation(): Location | null {
-    return (db.prepare(SQL.hqLocation).get() as Location | undefined) ?? null;
+  async getHqLocation(): Promise<Location | null> {
+    return (await db.prepare(SQL.hqLocation).get() as Location | undefined) ?? null;
   },
-  getLocationBySlug(slug: string): Location | null {
-    return (db.prepare(SQL.locationBySlug).get(slug) as Location | undefined) ?? null;
+  async getLocationBySlug(slug: string): Promise<Location | null> {
+    return (await db.prepare(SQL.locationBySlug).get(slug) as Location | undefined) ?? null;
   },
 
   // FAQs
-  listActiveFaqs(): FAQ[] {
-    return db.prepare(SQL.activeFaqs).all() as FAQ[];
+  async listActiveFaqs(): Promise<FAQ[]> {
+    return (await db.prepare(SQL.activeFaqs).all()) as FAQ[];
   },
 
   // Partners
-  listActivePartners(): TechnicalPartner[] {
-    return db.prepare(SQL.activePartners).all() as TechnicalPartner[];
+  async listActivePartners(): Promise<TechnicalPartner[]> {
+    return (await db.prepare(SQL.activePartners).all()) as TechnicalPartner[];
   },
-  listFeaturedPartners(limit = 6): TechnicalPartner[] {
-    return db.prepare(SQL.featuredPartners).all(limit) as TechnicalPartner[];
+  async listFeaturedPartners(limit = 6): Promise<TechnicalPartner[]> {
+    return (await db.prepare(SQL.featuredPartners).all(limit)) as TechnicalPartner[];
   },
-  getPartnerBySlug(slug: string): TechnicalPartner | null {
-    return (db.prepare(SQL.partnerBySlug).get(slug) as TechnicalPartner | undefined) ?? null;
+  async getPartnerBySlug(slug: string): Promise<TechnicalPartner | null> {
+    return (await db.prepare(SQL.partnerBySlug).get(slug) as TechnicalPartner | undefined) ?? null;
   },
-  searchPartners(opts: { q?: string; city?: string; serviceType?: string }): TechnicalPartner[] {
+  async searchPartners(opts: { q?: string; city?: string; serviceType?: string }): Promise<TechnicalPartner[]> {
     const where: string[] = ['status = 1'];
     const params: string[] = [];
     if (opts.q) {
@@ -228,18 +231,18 @@ export const data = {
       params.push(`%${opts.serviceType}%`);
     }
     const sql = `SELECT * FROM technical_partners WHERE ${where.join(' AND ')} ORDER BY featured DESC, company_name_en`;
-    return db.prepare(sql).all(...params) as TechnicalPartner[];
+    return (await db.prepare(sql).all(...params)) as TechnicalPartner[];
   },
 
   // Homepage content
-  listHomepageSections(): HomepageContent[] {
-    return db.prepare(SQL.activeHomepageSections).all() as HomepageContent[];
+  async listHomepageSections(): Promise<HomepageContent[]> {
+    return (await db.prepare(SQL.activeHomepageSections).all()) as HomepageContent[];
   },
 
   // Settings — wrapper (single-row): handled in settings.ts
 
   // Counts for dashboard
-  counts(): {
+  async counts(): Promise<{
     products: number;
     brands: number;
     categories: number;
@@ -248,17 +251,17 @@ export const data = {
     locations: number;
     featuredProducts: number;
     featuredPartners: number;
-  } {
-    const get = (sql: string) => (db.prepare(sql).get() as { c: number }).c;
+  }> {
+    const get = async (sql: string) => ((await db.prepare(sql).get()) as { c: number }).c;
     return {
-      products: get(`SELECT COUNT(*) as c FROM products WHERE status = 1`),
-      brands: get(`SELECT COUNT(*) as c FROM brands WHERE status = 1`),
-      categories: get(`SELECT COUNT(*) as c FROM categories WHERE status = 1`),
-      enquiries: get(`SELECT COUNT(*) as c FROM enquiries`),
-      partners: get(`SELECT COUNT(*) as c FROM technical_partners WHERE status = 1`),
-      locations: get(`SELECT COUNT(*) as c FROM locations WHERE status = 1`),
-      featuredProducts: get(`SELECT COUNT(*) as c FROM products WHERE status = 1 AND featured = 1`),
-      featuredPartners: get(`SELECT COUNT(*) as c FROM technical_partners WHERE status = 1 AND featured = 1`),
+      products: await get(`SELECT COUNT(*) as c FROM products WHERE status = 1`),
+      brands: await get(`SELECT COUNT(*) as c FROM brands WHERE status = 1`),
+      categories: await get(`SELECT COUNT(*) as c FROM categories WHERE status = 1`),
+      enquiries: await get(`SELECT COUNT(*) as c FROM enquiries`),
+      partners: await get(`SELECT COUNT(*) as c FROM technical_partners WHERE status = 1`),
+      locations: await get(`SELECT COUNT(*) as c FROM locations WHERE status = 1`),
+      featuredProducts: await get(`SELECT COUNT(*) as c FROM products WHERE status = 1 AND featured = 1`),
+      featuredPartners: await get(`SELECT COUNT(*) as c FROM technical_partners WHERE status = 1 AND featured = 1`),
     };
   },
 };

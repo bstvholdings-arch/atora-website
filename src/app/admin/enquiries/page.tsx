@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 export default async function EnquiriesAdminPage() {
   const admin = await getCurrentAdmin();
   if (!admin) redirect('/admin/login');
-  const enquiries = data.listAllEnquiries();
+  const enquiries = await data.listAllEnquiries();
   return (
     <div>
       <div className="mb-6">

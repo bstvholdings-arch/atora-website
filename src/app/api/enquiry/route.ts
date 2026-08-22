@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
     const photoUrl = photo ? await saveFile(photo, 'image') : null;
     const videoUrl = video ? await saveFile(video, 'video') : null;
 
-    const id = data.createEnquiry({
+    const id = await data.createEnquiry({
       type: get('type') || 'general',
       name: get('name') || null,
       phone: get('phone') || null,
@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
     });
 
     // Build a WhatsApp link for the customer to send
-    const whatsapp = getSetting('whatsapp_number', '60103838222');
+    const whatsapp = await getSetting('whatsapp_number', '60103838222');
     const lines = [
       `Hi ATORA, I just submitted a website enquiry (#${id}):`,
       ``,

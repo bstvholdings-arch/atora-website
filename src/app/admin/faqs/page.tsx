@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic';
 export default async function FaqsAdminPage() {
   const admin = await getCurrentAdmin();
   if (!admin) redirect('/admin/login');
-  const faqs = db.prepare('SELECT * FROM faqs ORDER BY display_order, id').all() as FAQ[];
+  const faqs = await db.prepare('SELECT * FROM faqs ORDER BY display_order, id').all() as FAQ[];
   return (
     <div>
       <div className="mb-6">

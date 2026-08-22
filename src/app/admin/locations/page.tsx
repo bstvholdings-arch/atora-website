@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic';
 export default async function LocationsAdminPage() {
   const admin = await getCurrentAdmin();
   if (!admin) redirect('/admin/login');
-  const locations = db.prepare('SELECT * FROM locations ORDER BY display_order, name_en').all() as Location[];
+  const locations = await db.prepare('SELECT * FROM locations ORDER BY display_order, name_en').all() as Location[];
   return (
     <div>
       <div className="mb-6">

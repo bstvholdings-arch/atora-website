@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 export default async function HomepageAdminPage() {
   const admin = await getCurrentAdmin();
   if (!admin) redirect('/admin/login');
-  const sections = data.listHomepageSections();
+  const sections = await data.listHomepageSections();
   return (
     <div>
       <div className="mb-6">

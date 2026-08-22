@@ -30,10 +30,12 @@ export type AdminUser = {
 };
 
 /** Look up an admin by email. */
-export function findAdminByEmail(email: string): (AdminUser & { password_hash: string }) | null {
-  const row = db
+export async function findAdminByEmail(
+  email: string
+): Promise<(AdminUser & { password_hash: string }) | null> {
+  const row = (await db
     .prepare('SELECT id, email, name, role, password_hash FROM admin_users WHERE email = ?')
-    .get(email.toLowerCase().trim()) as
+    .get(email.toLowerCase().trim())) as
     | (AdminUser & { password_hash: string })
     | undefined;
   return row ?? null;
@@ -41,7 +43,7 @@ export function findAdminByEmail(email: string): (AdminUser & { password_hash: s
 
 /** Create the default admin if no admin exists. Uses env vars. */
 export async function ensureDefaultAdmin(): Promise<void> {
-  const row = db.prepare('SELECT COUNT(*) as c FROM admin_users').get() as { c: number };
+  const row = (await db.prepare('SELECT COUNT(*) as c FROM admin_users').get()) as { c: number };
   if (row.c > 0) return;
 
   const email = (process.env.ADMIN_DEFAULT_EMAIL || DEFAULT_SETTINGS.company_name_en)
@@ -51,20 +53,22 @@ export async function ensureDefaultAdmin(): Promise<void> {
   const name = process.env.ADMIN_DEFAULT_NAME || 'Administrator';
   const hash = await hashPassword(password);
 
-  db.prepare(
-    `INSERT INTO admin_users (email, name, password_hash, role)
-     VALUES (?, ?, ?, 'superadmin')`
-  ).run(email, name, hash);
+  await db
+    .prepare(
+      `INSERT INTO admin_users (email, name, password_hash, role)
+       VALUES (?, ?, ?, 'superadmin')`
+    )
+    .run(email, name, hash);
   console.log(`[auth] Created default admin: ${email} / ${password}`);
 }
 
 export async function createSession(adminId: number): Promise<string> {
   const token = crypto.randomBytes(32).toString('hex');
   const expiresAt = new Date(Date.now() + SESSION_TTL_HOURS * 3600 * 1000).toISOString();
-  db.prepare(
-    `INSERT INTO sessions (token, admin_id, expires_at) VALUES (?, ?, ?)`
-  ).run(token, adminId, expiresAt);
-  db.prepare(`UPDATE admin_users SET last_login_at = datetime('now') WHERE id = ?`).run(adminId);
+  await db
+    .prepare(`INSERT INTO sessions (token, admin_id, expires_at) VALUES (?, ?, ?)`)
+    .run(token, adminId, expiresAt);
+  await db.prepare(`UPDATE admin_users SET last_login_at = datetime('now') WHERE id = ?`).run(adminId);
 
   const cookieStore = await cookies();
   cookieStore.set(SESSION_COOKIE, token, {
@@ -81,7 +85,7 @@ export async function destroySession(): Promise<void> {
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE)?.value;
   if (token) {
-    db.prepare('DELETE FROM sessions WHERE token = ?').run(token);
+    await db.prepare('DELETE FROM sessions WHERE token = ?').run(token);
     cookieStore.delete(SESSION_COOKIE);
   }
 }
@@ -91,14 +95,14 @@ export async function getCurrentAdmin(): Promise<AdminUser | null> {
   const token = cookieStore.get(SESSION_COOKIE)?.value;
   if (!token) return null;
 
-  const row = db
+  const row = (await db
     .prepare(
       `SELECT a.id, a.email, a.name, a.role
        FROM sessions s
        JOIN admin_users a ON a.id = s.admin_id
-       WHERE s.token = ? AND datetime(s.expires_at) > datetime('now')`
+       WHERE s.token = ? AND s.expires_at > CURRENT_TIMESTAMP`
     )
-    .get(token) as AdminUser | undefined;
+    .get(token)) as AdminUser | undefined;
   return row ?? null;
 }
 

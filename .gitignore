@@ -17,3 +17,9 @@ public/uploads/*
 # 临时迁移/探查脚本
 _*.cjs
 _*.sql
+
+# 陈旧构建目录（由 mv .next .next_stale_xxx 产生，非删除，体积大）
+.next_stale_*/
+
+# QA 截图证据（不进部署仓库）
+qa_*.png

@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 export default async function SettingsPage() {
   const admin = await getCurrentAdmin();
   if (!admin) redirect('/admin/login');
-  const settings = getAllSettings();
+  const settings = await getAllSettings();
   return (
     <div>
       <div className="mb-6">

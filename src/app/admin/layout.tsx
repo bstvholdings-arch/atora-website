@@ -22,8 +22,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     return <>{children}</>;
   }
 
-  const counts = data.counts();
-  const settings = getAllSettings();
+  const counts = await data.counts();
+  const settings = await getAllSettings();
 
   return (
     <div className="min-h-screen bg-gray-100">

@@ -1,289 +1,95 @@
 /**
- * SQLite database connection and schema initialisation.
- * Uses better-sqlite3 for synchronous access (server-only).
+ * PostgreSQL database connection (Supabase) — async compatibility layer.
+ * Provides a better-sqlite3-style API (prepare().get / .all / .run) so the
+ * repository layer (data.ts) only needs `await` added at call sites.
+ *
+ * Placeholders: SQLite `?` are rewritten to `$1, $2, ...` automatically.
+ * `datetime('now')` is rewritten to `CURRENT_TIMESTAMP`.
+ * INSERT statements get `RETURNING id` appended so `.run().lastInsertRowid`
+ * keeps working.
  */
-import Database from 'better-sqlite3';
-import path from 'node:path';
-import fs from 'node:fs';
+import { Pool } from 'pg';
 
-const DEFAULT_DB_PATH = path.join(process.cwd(), 'data', 'atora.db');
-const DB_PATH = process.env.DATABASE_PATH || DEFAULT_DB_PATH;
+const connectionString =
+  process.env.DATABASE_URL || process.env.DIRECT_URL || process.env.POSTGRES_URL;
 
-// Ensure data directory exists
-const dir = path.dirname(DB_PATH);
-if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+if (!connectionString) {
+  throw new Error(
+    'Missing DATABASE_URL / DIRECT_URL. Set it in your Vercel project env or .env.local'
+  );
+}
 
-// Singleton — Next.js dev mode will hot-reload, so guard with globalThis.
-const globalForDb = globalThis as unknown as { __atoraDb?: Database.Database };
-const db: Database.Database = globalForDb.__atoraDb ?? new Database(DB_PATH);
-if (process.env.NODE_ENV !== 'production') globalForDb.__atoraDb = db;
+const isRemote = /supabase|amazonaws|pooler|railway|render|neon/i.test(connectionString);
 
-db.pragma('journal_mode = WAL');
-db.pragma('foreign_keys = ON');
+const createPool = () =>
+  new Pool({
+    connectionString,
+    ssl: isRemote ? { rejectUnauthorized: false } : undefined,
+    max: 10,
+  });
 
-/**
- * Idempotent schema setup. Safe to call on every cold start.
- */
+// Singleton — Next.js dev mode hot-reloads, so guard with globalThis.
+const globalForDb = globalThis as unknown as { __atoraPool?: ReturnType<typeof createPool> };
+const pool = globalForDb.__atoraPool ?? createPool();
+if (process.env.NODE_ENV !== 'production') globalForDb.__atoraPool = pool;
+
+/** Convert SQLite-style `?` placeholders and `datetime('now')` to PostgreSQL. */
+function toPg(sql: string): string {
+  let i = 0;
+  let out = sql.replace(/\?/g, () => `$${++i}`);
+  out = out.replace(/datetime\('now',\s*'localtime'\)/gi, 'CURRENT_TIMESTAMP');
+  out = out.replace(/datetime\('now'\)/gi, 'CURRENT_TIMESTAMP');
+  out = out.replace(/datetime\('now',\s*'utc'\)/gi, 'CURRENT_TIMESTAMP');
+  // Strip any remaining datetime(...) wrapper (e.g. datetime(column) used for casting)
+  out = out.replace(/datetime\(([^)]+)\)/gi, '$1');
+  return out;
+}
+
+type Row = Record<string, any>;
+
+export interface Statement {
+  get: (...params: any[]) => Promise<Row | undefined>;
+  all: (...params: any[]) => Promise<Row[]>;
+  run: (...params: any[]) => Promise<{ lastInsertRowid: number | bigint | undefined; changes: number }>;
+}
+
+export function prepare(sql: string): Statement {
+  const psql = toPg(sql);
+  const isInsert = /^\s*INSERT\s+(?:OR\s+IGNORE\s+)?INTO/i.test(psql) && !/RETURNING/i.test(psql);
+  const execSql = isInsert ? `${psql} RETURNING id` : psql;
+  return {
+    async get(...params: any[]): Promise<Row | undefined> {
+      const r = await pool.query(execSql, params);
+      return r.rows[0];
+    },
+    async all(...params: any[]): Promise<Row[]> {
+      const r = await pool.query(execSql, params);
+      return r.rows;
+    },
+    async run(...params: any[]): Promise<{ lastInsertRowid: number | bigint | undefined; changes: number }> {
+      const r = await pool.query(execSql, params);
+      return {
+        lastInsertRowid: r.rows[0]?.id ?? undefined,
+        changes: r.rowCount ?? 0,
+      };
+    },
+  };
+}
+
+export async function exec(sql: string): Promise<void> {
+  await pool.query(sql);
+}
+
+/** No-op when using a managed Postgres database (tables are provisioned separately). */
 export function initSchema(): void {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS brands (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      slug TEXT UNIQUE NOT NULL,
-      name_en TEXT NOT NULL,
-      name_bm TEXT,
-      name_zh TEXT,
-      logo TEXT,
-      description_en TEXT,
-      description_bm TEXT,
-      description_zh TEXT,
-      display_order INTEGER DEFAULT 0,
-      featured INTEGER DEFAULT 0,
-      status INTEGER DEFAULT 1,
-      created_at TEXT DEFAULT (datetime('now')),
-      updated_at TEXT DEFAULT (datetime('now'))
-    );
-
-    CREATE TABLE IF NOT EXISTS categories (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      slug TEXT UNIQUE NOT NULL,
-      name_en TEXT NOT NULL,
-      name_bm TEXT,
-      name_zh TEXT,
-      parent_id INTEGER REFERENCES categories(id) ON DELETE SET NULL,
-      icon TEXT,
-      display_order INTEGER DEFAULT 0,
-      status INTEGER DEFAULT 1,
-      created_at TEXT DEFAULT (datetime('now')),
-      FOREIGN KEY (parent_id) REFERENCES categories(id) ON DELETE SET NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS products (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      slug TEXT UNIQUE NOT NULL,
-      sku TEXT,
-      name_en TEXT NOT NULL,
-      name_bm TEXT,
-      name_zh TEXT,
-      brand_id INTEGER REFERENCES brands(id) ON DELETE SET NULL,
-      category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL,
-      model TEXT,
-      capacity TEXT,
-      product_type TEXT,
-      description_en TEXT,
-      description_bm TEXT,
-      description_zh TEXT,
-      specifications TEXT,
-      stock_status TEXT DEFAULT 'in_stock',
-      retail_price REAL,
-      wholesale_price REAL,
-      promotion_price REAL,
-      price_min REAL,
-      price_max REAL,
-      currency TEXT DEFAULT 'RM',
-      price_display_mode TEXT DEFAULT 'SHOW_PRICE',
-      featured INTEGER DEFAULT 0,
-      status INTEGER DEFAULT 1,
-      seo_title_en TEXT,
-      seo_description_en TEXT,
-      created_at TEXT DEFAULT (datetime('now')),
-      updated_at TEXT DEFAULT (datetime('now')),
-      FOREIGN KEY (brand_id) REFERENCES brands(id) ON DELETE SET NULL,
-      FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS product_media (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      product_id INTEGER NOT NULL,
-      type TEXT CHECK(type IN ('image','video')) NOT NULL,
-      url TEXT NOT NULL,
-      alt_text TEXT,
-      display_order INTEGER DEFAULT 0,
-      is_primary INTEGER DEFAULT 0,
-      is_featured INTEGER DEFAULT 0,
-      created_at TEXT DEFAULT (datetime('now')),
-      FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
-    );
-
-    CREATE TABLE IF NOT EXISTS enquiries (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      type TEXT DEFAULT 'general',
-      name TEXT,
-      phone TEXT,
-      whatsapp TEXT,
-      email TEXT,
-      brand TEXT,
-      model TEXT,
-      quantity TEXT,
-      message TEXT,
-      photo_url TEXT,
-      video_url TEXT,
-      product_id INTEGER REFERENCES products(id) ON DELETE SET NULL,
-      status TEXT DEFAULT 'NEW',
-      source_page TEXT,
-      created_at TEXT DEFAULT (datetime('now')),
-      updated_at TEXT DEFAULT (datetime('now')),
-      FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS admin_users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      email TEXT UNIQUE NOT NULL,
-      name TEXT,
-      password_hash TEXT NOT NULL,
-      role TEXT DEFAULT 'admin',
-      created_at TEXT DEFAULT (datetime('now')),
-      last_login_at TEXT
-    );
-
-    CREATE TABLE IF NOT EXISTS sessions (
-      token TEXT PRIMARY KEY,
-      admin_id INTEGER NOT NULL,
-      expires_at TEXT NOT NULL,
-      created_at TEXT DEFAULT (datetime('now')),
-      FOREIGN KEY (admin_id) REFERENCES admin_users(id) ON DELETE CASCADE
-    );
-
-    CREATE TABLE IF NOT EXISTS site_settings (
-      key TEXT PRIMARY KEY,
-      value TEXT,
-      updated_at TEXT DEFAULT (datetime('now'))
-    );
-
-    CREATE TABLE IF NOT EXISTS locations (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      slug TEXT UNIQUE NOT NULL,
-      name_en TEXT NOT NULL,
-      name_bm TEXT,
-      name_zh TEXT,
-      type TEXT DEFAULT 'branch',
-      is_hq INTEGER DEFAULT 0,
-      address TEXT,
-      city TEXT,
-      state TEXT,
-      postal_code TEXT,
-      country TEXT DEFAULT 'Malaysia',
-      telephone TEXT,
-      whatsapp TEXT,
-      email TEXT,
-      opening_hours TEXT,
-      google_maps_url TEXT,
-      google_maps_place_id TEXT,
-      latitude REAL,
-      longitude REAL,
-      photo_url TEXT,
-      description_en TEXT,
-      description_bm TEXT,
-      description_zh TEXT,
-      display_order INTEGER DEFAULT 0,
-      status INTEGER DEFAULT 1,
-      created_at TEXT DEFAULT (datetime('now')),
-      updated_at TEXT DEFAULT (datetime('now'))
-    );
-
-    CREATE TABLE IF NOT EXISTS faqs (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      category TEXT,
-      question_en TEXT NOT NULL,
-      question_bm TEXT,
-      question_zh TEXT,
-      answer_en TEXT NOT NULL,
-      answer_bm TEXT,
-      answer_zh TEXT,
-      display_order INTEGER DEFAULT 0,
-      status INTEGER DEFAULT 1,
-      created_at TEXT DEFAULT (datetime('now'))
-    );
-
-    CREATE TABLE IF NOT EXISTS technical_partners (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      slug TEXT UNIQUE NOT NULL,
-      company_name_en TEXT NOT NULL,
-      company_name_bm TEXT,
-      company_name_zh TEXT,
-      contact_person TEXT,
-      telephone TEXT,
-      whatsapp TEXT,
-      email TEXT,
-      address TEXT,
-      city TEXT,
-      state TEXT,
-      country TEXT DEFAULT 'Malaysia',
-      service_area TEXT,
-      service_types TEXT,
-      logo_url TEXT,
-      photo_url TEXT,
-      description_en TEXT,
-      description_bm TEXT,
-      description_zh TEXT,
-      website TEXT,
-      facebook TEXT,
-      google_maps_url TEXT,
-      display_order INTEGER DEFAULT 0,
-      featured INTEGER DEFAULT 0,
-      status INTEGER DEFAULT 1,
-      show_phone INTEGER DEFAULT 1,
-      show_whatsapp INTEGER DEFAULT 1,
-      show_email INTEGER DEFAULT 1,
-      show_address INTEGER DEFAULT 1,
-      show_website INTEGER DEFAULT 1,
-      created_at TEXT DEFAULT (datetime('now')),
-      updated_at TEXT DEFAULT (datetime('now'))
-    );
-
-    CREATE TABLE IF NOT EXISTS price_history (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      product_id INTEGER NOT NULL,
-      price_type TEXT NOT NULL,
-      old_price REAL,
-      new_price REAL,
-      changed_by INTEGER,
-      changed_at TEXT DEFAULT (datetime('now')),
-      FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
-      FOREIGN KEY (changed_by) REFERENCES admin_users(id) ON DELETE SET NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS homepage_content (
-      section_key TEXT PRIMARY KEY,
-      enabled INTEGER DEFAULT 1,
-      title_en TEXT,
-      title_bm TEXT,
-      title_zh TEXT,
-      subtitle_en TEXT,
-      subtitle_bm TEXT,
-      subtitle_zh TEXT,
-      body_en TEXT,
-      body_bm TEXT,
-      body_zh TEXT,
-      image_url TEXT,
-      video_url TEXT,
-      cta_label_en TEXT,
-      cta_label_bm TEXT,
-      cta_label_zh TEXT,
-      cta_url TEXT,
-      display_order INTEGER DEFAULT 0,
-      updated_at TEXT DEFAULT (datetime('now'))
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_products_brand ON products(brand_id);
-    CREATE INDEX IF NOT EXISTS idx_products_category ON products(category_id);
-    CREATE INDEX IF NOT EXISTS idx_products_featured ON products(featured);
-    CREATE INDEX IF NOT EXISTS idx_enquiries_status ON enquiries(status);
-    CREATE INDEX IF NOT EXISTS idx_partners_featured ON technical_partners(featured);
-    CREATE INDEX IF NOT EXISTS idx_product_media_product ON product_media(product_id);
-  `);
+  /* tables are created directly in Supabase; nothing to do here */
 }
 
-// Auto-init on import
-try {
-  initSchema();
-} catch (err) {
-  console.error('[db] Schema init error:', err);
-}
-
+const db = { prepare, exec };
 export default db;
 
 /* ============================================================
- * Helper — typed queries
+ * Domain types (shared across server components / repositories)
  * ============================================================ */
 export type Brand = {
   id: number;

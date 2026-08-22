@@ -10,8 +10,8 @@ export default async function DashboardPage() {
   const admin = await getCurrentAdmin();
   if (!admin) redirect('/admin/login');
 
-  const counts = data.counts();
-  const recentEnquiries = data.listAllEnquiries().slice(0, 8);
+  const counts = await data.counts();
+  const recentEnquiries = (await data.listAllEnquiries()).slice(0, 8);
 
   return (
     <div>

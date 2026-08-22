@@ -1,269 +1,22 @@
 /**
- * Seed script — populate ATORA DB with all the sample data from the master prompt.
+ * Seed script — populate the ATORA Supabase/PostgreSQL DB with all sample data.
  *
- * Run with: `npm run db:seed`
+ * Run with: `npm run db:seed`   (requires DATABASE_URL in .env)
+ *
+ * The schema is applied idempotently from scripts/supabase-schema.sql first,
+ * so a single `db:seed` fully provisions a fresh database.
  */
-import Database from 'better-sqlite3';
-import path from 'node:path';
+import db, { runSqlFile } from './pg-helper.mjs';
 import bcrypt from 'bcryptjs';
-import fs from 'node:fs';
 
-const DB_PATH = process.env.DATABASE_PATH || path.join(process.cwd(), 'data', 'atora.db');
+console.log('[seed] Applying schema (scripts/supabase-schema.sql)...');
+await runSqlFile('scripts/supabase-schema.sql');
 
-// Ensure the data directory exists
-fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
-
-const db = new Database(DB_PATH);
-db.pragma('journal_mode = WAL');
-db.pragma('foreign_keys = ON');
-
-console.log(`[seed] Database: ${DB_PATH}`);
-
-// Bootstrap schema (mirrors src/lib/db.ts initSchema).
-// If you've changed the schema in src/lib/db.ts, sync it here too.
-console.log('[seed] Initialising schema...');
-db.exec(`
-  CREATE TABLE IF NOT EXISTS brands (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    slug TEXT UNIQUE NOT NULL,
-    name_en TEXT NOT NULL,
-    name_bm TEXT,
-    name_zh TEXT,
-    logo TEXT,
-    description_en TEXT,
-    description_bm TEXT,
-    description_zh TEXT,
-    display_order INTEGER DEFAULT 0,
-    featured INTEGER DEFAULT 0,
-    status INTEGER DEFAULT 1,
-    created_at TEXT DEFAULT (datetime('now')),
-    updated_at TEXT DEFAULT (datetime('now'))
-  );
-
-  CREATE TABLE IF NOT EXISTS categories (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    slug TEXT UNIQUE NOT NULL,
-    name_en TEXT NOT NULL,
-    name_bm TEXT,
-    name_zh TEXT,
-    parent_id INTEGER REFERENCES categories(id) ON DELETE SET NULL,
-    icon TEXT,
-    display_order INTEGER DEFAULT 0,
-    status INTEGER DEFAULT 1,
-    created_at TEXT DEFAULT (datetime('now'))
-  );
-
-  CREATE TABLE IF NOT EXISTS products (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    slug TEXT UNIQUE NOT NULL,
-    sku TEXT,
-    name_en TEXT NOT NULL,
-    name_bm TEXT,
-    name_zh TEXT,
-    brand_id INTEGER REFERENCES brands(id) ON DELETE SET NULL,
-    category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL,
-    model TEXT,
-    capacity TEXT,
-    product_type TEXT,
-    description_en TEXT,
-    description_bm TEXT,
-    description_zh TEXT,
-    specifications TEXT,
-    stock_status TEXT DEFAULT 'in_stock',
-    retail_price REAL,
-    wholesale_price REAL,
-    promotion_price REAL,
-    price_min REAL,
-    price_max REAL,
-    currency TEXT DEFAULT 'RM',
-    price_display_mode TEXT DEFAULT 'SHOW_PRICE',
-    featured INTEGER DEFAULT 0,
-    status INTEGER DEFAULT 1,
-    seo_title_en TEXT,
-    seo_description_en TEXT,
-    created_at TEXT DEFAULT (datetime('now')),
-    updated_at TEXT DEFAULT (datetime('now'))
-  );
-
-  CREATE TABLE IF NOT EXISTS product_media (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    product_id INTEGER NOT NULL,
-    type TEXT CHECK(type IN ('image','video')) NOT NULL,
-    url TEXT NOT NULL,
-    alt_text TEXT,
-    display_order INTEGER DEFAULT 0,
-    is_primary INTEGER DEFAULT 0,
-    is_featured INTEGER DEFAULT 0,
-    created_at TEXT DEFAULT (datetime('now')),
-    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
-  );
-
-  CREATE TABLE IF NOT EXISTS enquiries (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    type TEXT DEFAULT 'general',
-    name TEXT,
-    phone TEXT,
-    whatsapp TEXT,
-    email TEXT,
-    brand TEXT,
-    model TEXT,
-    quantity TEXT,
-    message TEXT,
-    photo_url TEXT,
-    video_url TEXT,
-    product_id INTEGER REFERENCES products(id) ON DELETE SET NULL,
-    status TEXT DEFAULT 'NEW',
-    source_page TEXT,
-    created_at TEXT DEFAULT (datetime('now')),
-    updated_at TEXT DEFAULT (datetime('now')),
-    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL
-  );
-
-  CREATE TABLE IF NOT EXISTS admin_users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    email TEXT UNIQUE NOT NULL,
-    name TEXT,
-    password_hash TEXT NOT NULL,
-    role TEXT DEFAULT 'admin',
-    created_at TEXT DEFAULT (datetime('now')),
-    last_login_at TEXT
-  );
-
-  CREATE TABLE IF NOT EXISTS sessions (
-    token TEXT PRIMARY KEY,
-    admin_id INTEGER NOT NULL,
-    expires_at TEXT NOT NULL,
-    created_at TEXT DEFAULT (datetime('now')),
-    FOREIGN KEY (admin_id) REFERENCES admin_users(id) ON DELETE CASCADE
-  );
-
-  CREATE TABLE IF NOT EXISTS site_settings (
-    key TEXT PRIMARY KEY,
-    value TEXT,
-    updated_at TEXT DEFAULT (datetime('now'))
-  );
-
-  CREATE TABLE IF NOT EXISTS locations (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    slug TEXT UNIQUE NOT NULL,
-    name_en TEXT NOT NULL,
-    name_bm TEXT,
-    name_zh TEXT,
-    type TEXT DEFAULT 'branch',
-    is_hq INTEGER DEFAULT 0,
-    address TEXT,
-    city TEXT,
-    state TEXT,
-    postal_code TEXT,
-    country TEXT DEFAULT 'Malaysia',
-    telephone TEXT,
-    whatsapp TEXT,
-    email TEXT,
-    opening_hours TEXT,
-    google_maps_url TEXT,
-    google_maps_place_id TEXT,
-    latitude REAL,
-    longitude REAL,
-    photo_url TEXT,
-    description_en TEXT,
-    description_bm TEXT,
-    description_zh TEXT,
-    display_order INTEGER DEFAULT 0,
-    status INTEGER DEFAULT 1,
-    created_at TEXT DEFAULT (datetime('now')),
-    updated_at TEXT DEFAULT (datetime('now'))
-  );
-
-  CREATE TABLE IF NOT EXISTS faqs (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    category TEXT,
-    question_en TEXT NOT NULL,
-    question_bm TEXT,
-    question_zh TEXT,
-    answer_en TEXT NOT NULL,
-    answer_bm TEXT,
-    answer_zh TEXT,
-    display_order INTEGER DEFAULT 0,
-    status INTEGER DEFAULT 1,
-    created_at TEXT DEFAULT (datetime('now'))
-  );
-
-  CREATE TABLE IF NOT EXISTS technical_partners (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    slug TEXT UNIQUE NOT NULL,
-    company_name_en TEXT NOT NULL,
-    company_name_bm TEXT,
-    company_name_zh TEXT,
-    contact_person TEXT,
-    telephone TEXT,
-    whatsapp TEXT,
-    email TEXT,
-    address TEXT,
-    city TEXT,
-    state TEXT,
-    country TEXT DEFAULT 'Malaysia',
-    service_area TEXT,
-    service_types TEXT,
-    logo_url TEXT,
-    photo_url TEXT,
-    description_en TEXT,
-    description_bm TEXT,
-    description_zh TEXT,
-    website TEXT,
-    facebook TEXT,
-    google_maps_url TEXT,
-    display_order INTEGER DEFAULT 0,
-    featured INTEGER DEFAULT 0,
-    status INTEGER DEFAULT 1,
-    show_phone INTEGER DEFAULT 1,
-    show_whatsapp INTEGER DEFAULT 1,
-    show_email INTEGER DEFAULT 1,
-    show_address INTEGER DEFAULT 1,
-    show_website INTEGER DEFAULT 1,
-    created_at TEXT DEFAULT (datetime('now')),
-    updated_at TEXT DEFAULT (datetime('now'))
-  );
-
-  CREATE TABLE IF NOT EXISTS price_history (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    product_id INTEGER NOT NULL,
-    price_type TEXT NOT NULL,
-    old_price REAL,
-    new_price REAL,
-    changed_by INTEGER,
-    changed_at TEXT DEFAULT (datetime('now')),
-    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
-    FOREIGN KEY (changed_by) REFERENCES admin_users(id) ON DELETE SET NULL
-  );
-
-  CREATE TABLE IF NOT EXISTS homepage_content (
-    section_key TEXT PRIMARY KEY,
-    enabled INTEGER DEFAULT 1,
-    title_en TEXT,
-    title_bm TEXT,
-    title_zh TEXT,
-    subtitle_en TEXT,
-    subtitle_bm TEXT,
-    subtitle_zh TEXT,
-    body_en TEXT,
-    body_bm TEXT,
-    body_zh TEXT,
-    image_url TEXT,
-    video_url TEXT,
-    cta_label_en TEXT,
-    cta_label_bm TEXT,
-    cta_label_zh TEXT,
-    cta_url TEXT,
-    display_order INTEGER DEFAULT 0,
-    updated_at TEXT DEFAULT (datetime('now'))
-  );
-`);
-
-// Clean slate
 console.log('[seed] Clearing existing data...');
-db.exec(`
+await db.exec(`
   DELETE FROM enquiries;
   DELETE FROM product_media;
+  DELETE FROM price_history;
   DELETE FROM products;
   DELETE FROM brands;
   DELETE FROM categories;
@@ -273,19 +26,20 @@ db.exec(`
   DELETE FROM homepage_content;
   DELETE FROM site_settings;
   DELETE FROM admin_users WHERE role != 'superadmin';
-  DELETE FROM sqlite_sequence;
 `);
 
 console.log('[seed] Inserting admin...');
 const adminHash = bcrypt.hashSync(process.env.ADMIN_DEFAULT_PASSWORD || 'Atora@2026', 10);
-db.prepare(
-  `INSERT INTO admin_users (email, name, password_hash, role) VALUES (?, ?, ?, 'superadmin')
-   ON CONFLICT(email) DO UPDATE SET password_hash = excluded.password_hash, name = excluded.name`
-).run(
-  (process.env.ADMIN_DEFAULT_EMAIL || 'admin@atora.com.my').toLowerCase(),
-  process.env.ADMIN_DEFAULT_NAME || 'Administrator',
-  adminHash
-);
+await db
+  .prepare(
+    `INSERT INTO admin_users (email, name, password_hash, role) VALUES (?, ?, ?, 'superadmin')
+     ON CONFLICT(email) DO UPDATE SET password_hash = excluded.password_hash, name = excluded.name`
+  )
+  .run(
+    (process.env.ADMIN_DEFAULT_EMAIL || 'admin@atora.com.my').toLowerCase(),
+    process.env.ADMIN_DEFAULT_NAME || 'Administrator',
+    adminHash
+  );
 
 console.log('[seed] Site settings...');
 const settings = [
@@ -314,8 +68,10 @@ const settings = [
   ['footer_about_bm', 'Pembekal borong dan alat ganti penyaman udara profesional yang melayani pelanggan di seluruh Malaysia sejak 2022.'],
   ['footer_about_zh', '自2022年起，专业冷气批发与零件供应商，业务覆盖全马来西亚。'],
 ];
-const stmtSetting = db.prepare(`INSERT INTO site_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`);
-for (const [k, v] of settings) stmtSetting.run(k, v);
+const stmtSetting = db.prepare(
+  `INSERT INTO site_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`
+);
+for (const [k, v] of settings) await stmtSetting.run(k, v);
 
 console.log('[seed] Brands...');
 const brands = [
@@ -335,7 +91,7 @@ const stmtBrand = db.prepare(
 );
 brands.forEach((b, i) => stmtBrand.run(b.slug, b.name, b.name, b.name, b.desc, i));
 const brandMap = {};
-for (const r of db.prepare('SELECT id, slug FROM brands').all()) brandMap[r.slug] = r.id;
+for (const r of await db.prepare('SELECT id, slug FROM brands').all()) brandMap[r.slug] = r.id;
 
 console.log('[seed] Categories...');
 const categoryGroups = [
@@ -374,7 +130,7 @@ categoryGroups.forEach((g, i) => {
   });
 });
 const catMap = {};
-for (const r of db.prepare('SELECT id, slug FROM categories').all()) catMap[r.slug] = r.id;
+for (const r of await db.prepare('SELECT id, slug FROM categories').all()) catMap[r.slug] = r.id;
 
 console.log('[seed] Locations...');
 const locs = [
@@ -419,16 +175,17 @@ const stmtLoc = db.prepare(
      display_order, status)
    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Malaysia', ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`
 );
-locs.forEach((l, i) =>
-  stmtLoc.run(
+for (let i = 0; i < locs.length; i++) {
+  const l = locs[i];
+  await stmtLoc.run(
     l.slug, l.name, l.name, l.name,
     l.type, l.is_hq,
     l.address, l.city, l.state, l.postal,
     l.telephone, l.whatsapp, l.email ?? null,
     l.hours, l.gmaps_url ?? null, l.gmaps_place_id ?? null,
     l.latitude, l.longitude, i
-  )
-);
+  );
+}
 
 console.log('[seed] Technical Partners (samples)...');
 const partners = [
@@ -476,15 +233,16 @@ const stmtPartner = db.prepare(
      show_phone, show_whatsapp, show_email, show_address, show_website)
    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Malaysia', ?, ?, ?, ?, ?, 1, 1, 1, 1, 1)`
 );
-partners.forEach((p, i) =>
-  stmtPartner.run(
+for (let i = 0; i < partners.length; i++) {
+  const p = partners[i];
+  await stmtPartner.run(
     p.slug, p.name_en, p.name_en, p.name_zh,
     p.contact ?? null, p.tel ?? null, p.whatsapp ?? null, p.email ?? null,
     p.address, p.city, p.state,
     p.service_area ?? null, p.service_types ?? null,
     i + 1, p.featured, p.status
-  )
-);
+  );
+}
 
 console.log('[seed] FAQs...');
 const faqs = [
@@ -504,7 +262,10 @@ const faqs = [
 const stmtFaq = db.prepare(
   `INSERT INTO faqs (category, question_en, answer_en, display_order, status) VALUES (?, ?, ?, ?, 1)`
 );
-faqs.forEach((f, i) => stmtFaq.run(f.category ?? 'General', f.q_en, f.a_en, i));
+for (let i = 0; i < faqs.length; i++) {
+  const f = faqs[i];
+  await stmtFaq.run(f.category ?? 'General', f.q_en, f.a_en, i);
+}
 
 console.log('[seed] Homepage content sections...');
 const sections = [
@@ -525,9 +286,9 @@ const stmtSec = db.prepare(
    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
    ON CONFLICT(section_key) DO UPDATE SET enabled = excluded.enabled`
 );
-sections.forEach((s) =>
-  stmtSec.run(s.key, s.enabled, s.title_en, s.title_bm, s.title_zh, s.subtitle_en, s.subtitle_bm, s.subtitle_zh, s.image_url, s.video_url, s.display_order)
-);
+for (const s of sections) {
+  await stmtSec.run(s.key, s.enabled, s.title_en, s.title_bm, s.title_zh, s.subtitle_en, s.subtitle_bm, s.subtitle_zh, s.image_url, s.video_url, s.display_order);
+}
 
 console.log('[seed] Products...');
 function slugify(s) {
@@ -559,21 +320,22 @@ const stmtProd = db.prepare(
    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'RM', ?, ?, 1, ?, ?)`
 );
 const usedSlugs = new Set();
-products.forEach((p, i) => {
+for (let i = 0; i < products.length; i++) {
+  const p = products[i];
   let slug = slugify(p.name);
   while (usedSlugs.has(slug)) slug = `${slug}-${i}`;
   usedSlugs.add(slug);
   const brandId = p.brand ? (brandMap[p.brand] ?? null) : null;
   const catId = catMap[p.cat];
   if (!catId) throw new Error(`Seed error: category slug not found: ${p.cat}`);
-  stmtProd.run(
+  await stmtProd.run(
     slug, p.sku ?? null, p.name, p.name, p.name, brandId, catId, p.model ?? null, p.cap ?? null, p.ptype ?? null,
     p.desc, p.desc, p.desc, p.spec ?? null, p.stock || 'in_stock',
     p.retail ?? null, p.wholesale ?? null, p.promo ?? null, p.price_min ?? null, p.price_max ?? null,
     p.mode || 'SHOW_PRICE', p.featured ? 1 : 0,
     `ATORA — ${p.name}`, p.desc
   );
-});
+}
 
 console.log('[seed] Product media (sample primary images)...');
 const mediaSeed = [
@@ -586,7 +348,7 @@ const stmtMedia = db.prepare(
   `INSERT INTO product_media (product_id, type, url, alt_text, display_order, is_primary, is_featured)
    VALUES ((SELECT id FROM products WHERE name_en = ?), 'image', ?, ?, 1, 1, 0)`
 );
-for (const m of mediaSeed) stmtMedia.run(m.name, m.url, m.alt);
+for (const m of mediaSeed) await stmtMedia.run(m.name, m.url, m.alt);
 
 console.log('[seed] Done!');
 console.log('');
@@ -594,4 +356,4 @@ console.log('  Admin login: ' + (process.env.ADMIN_DEFAULT_EMAIL || 'admin@atora
 console.log('  Admin password: ' + (process.env.ADMIN_DEFAULT_PASSWORD || 'Atora@2026'));
 console.log('  Start the site: npm run dev');
 console.log('  Visit: http://localhost:3000');
-db.close();
+await db.close();

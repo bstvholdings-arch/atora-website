@@ -5,31 +5,36 @@ import type { Metadata } from 'next';
 import { LOCALES, Locale, t, langAlternates } from '@/lib/i18n';
 import { getAllSettings } from '@/lib/settings';
 import ContactForm from '@/components/ContactForm';
-
-export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }): Promise<Metadata> {
-  const { lang: rawLang } = await params;
-  const lang: Locale = (LOCALES as readonly string[]).includes(rawLang) ? (rawLang as Locale) : 'en';
-  return {
-    title: `${t(lang, 'contact.pageTitle')} — ATORA`,
-    description: t(lang, 'contact.pageSub'),
-    alternates: langAlternates(`/${lang}/contact`),
-  };
+export async function generateMetadata({ params }: {
+    params: Promise<{
+        lang: string;
+    }>;
+}): Promise<Metadata> {
+    let _params = await params;
+    const { lang: rawLang } = _params;
+    const lang: Locale = (LOCALES as readonly string[]).includes(rawLang) ? (rawLang as Locale) : 'en';
+    return {
+        title: `${t(lang, 'contact.pageTitle')} — ATORA`,
+        description: t(lang, 'contact.pageSub'),
+        alternates: langAlternates(`/${lang}/contact`),
+    };
 }
-
-export default async function ContactPage({
-  params,
-  searchParams,
-}: {
-  params: Promise<{ lang: string }>;
-  searchParams: Promise<{ type?: string; product?: string }>;
+export default async function ContactPage({ params, searchParams, }: {
+    params: Promise<{
+        lang: string;
+    }>;
+    searchParams: Promise<{
+        type?: string;
+        product?: string;
+    }>;
 }) {
-  const { lang: rawLang } = await params;
-  const lang: Locale = (LOCALES as readonly string[]).includes(rawLang) ? (rawLang as Locale) : 'en';
-  const sp = await searchParams;
-  const s = getAllSettings();
-
-  return (
-    <div className="container-fluid py-8">
+    let _searchParams = await searchParams;
+    let _params = await params;
+    const { lang: rawLang } = _params;
+    const lang: Locale = (LOCALES as readonly string[]).includes(rawLang) ? (rawLang as Locale) : 'en';
+    const sp = _searchParams;
+    const s = await getAllSettings();
+    return (<div className="container-fluid py-8">
       <header className="mb-8">
         <h1 className="heading-1 mb-2">{t(lang, 'contact.pageTitle')}</h1>
         <p className="text-gray-600">{t(lang, 'contact.pageSub')}</p>
@@ -37,7 +42,7 @@ export default async function ContactPage({
 
       <div className="grid lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2">
-          <ContactForm lang={lang} initialType={sp.type ?? 'general'} initialProduct={sp.product ?? ''} />
+          <ContactForm lang={lang} initialType={sp.type ?? 'general'} initialProduct={sp.product ?? ''}/>
         </div>
 
         <aside>
@@ -55,22 +60,15 @@ export default async function ContactPage({
 
             <div>
               <div className="text-xs text-gray-500 uppercase tracking-wider mb-1">WhatsApp</div>
-              <a
-                href={`https://wa.me/${s.whatsapp_number.replace(/[^0-9]/g, '')}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-medium text-brand-700"
-              >
+              <a href={`https://wa.me/${s.whatsapp_number.replace(/[^0-9]/g, '')}`} target="_blank" rel="noopener noreferrer" className="font-medium text-brand-700">
                 💬 {s.whatsapp_number}
               </a>
             </div>
 
-            {s.email && (
-              <div>
+            {s.email && (<div>
                 <div className="text-xs text-gray-500 uppercase tracking-wider mb-1">Email</div>
                 <a href={`mailto:${s.email}`} className="font-medium text-brand-700 break-all text-sm">✉ {s.email}</a>
-              </div>
-            )}
+              </div>)}
 
             <div>
               <div className="text-xs text-gray-500 uppercase tracking-wider mb-1">{t(lang, 'footer.businessHours')}</div>
@@ -80,14 +78,11 @@ export default async function ContactPage({
             <div className="pt-3 border-t border-gray-100">
               <div className="text-xs text-gray-500 uppercase tracking-wider mb-2">{t(lang, 'serviceNationwide')}</div>
               <div className="flex flex-wrap gap-1">
-                {['Padang Serai', 'Sungai Petani', 'Kulim', 'Kedah', 'Malaysia'].map((loc) => (
-                  <span key={loc} className="badge-blue">{loc}</span>
-                ))}
+                {['Padang Serai', 'Sungai Petani', 'Kulim', 'Kedah', 'Malaysia'].map((loc) => (<span key={loc} className="badge-blue">{loc}</span>))}
               </div>
             </div>
           </div>
         </aside>
       </div>
-    </div>
-  );
+    </div>);
 }

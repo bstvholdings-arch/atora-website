@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import path from 'node:path';
 import fs from 'node:fs';
 import { getCurrentAdmin } from '@/lib/auth';
+import { storageConfigured, uploadToStorage } from '@/lib/storage';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -57,8 +58,21 @@ export async function POST(req: NextRequest) {
     }
 
     const safeName = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}${ext}`;
-    const dest = path.join(UPLOAD_DIR, safeName);
     const buf = Buffer.from(await file.arrayBuffer());
+
+    // Production: object storage (Supabase Storage). Falls back to local
+    // public/uploads when storage env is not configured (local dev).
+    if (storageConfigured()) {
+      const url = await uploadToStorage(
+        `uploads/${safeName}`,
+        buf,
+        file.type || 'application/octet-stream',
+      );
+      if (url) return NextResponse.json({ ok: true, url });
+    }
+
+    if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+    const dest = path.join(UPLOAD_DIR, safeName);
     fs.writeFileSync(dest, buf);
     return NextResponse.json({ ok: true, url: `/uploads/${safeName}` });
   } catch (err) {

@@ -14,9 +14,9 @@ export default async function ProductsAdminPage() {
   const admin = await getCurrentAdmin();
   if (!admin) redirect('/admin/login');
 
-  const products = db.prepare('SELECT * FROM products ORDER BY featured DESC, created_at DESC').all() as Product[];
-  const brands = data.listActiveBrands();
-  const categories = data.listActiveCategories();
+  const products = await db.prepare('SELECT * FROM products ORDER BY featured DESC, created_at DESC').all() as Product[];
+  const brands = await data.listActiveBrands();
+  const categories = await data.listActiveCategories();
 
   return (
     <div>

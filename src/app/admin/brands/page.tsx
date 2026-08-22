@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic';
 export default async function BrandsAdminPage() {
   const admin = await getCurrentAdmin();
   if (!admin) redirect('/admin/login');
-  const brands = db.prepare('SELECT * FROM brands ORDER BY display_order, name_en').all() as Brand[];
+  const brands = await db.prepare('SELECT * FROM brands ORDER BY display_order, name_en').all() as Brand[];
   return (
     <div>
       <div className="mb-6">

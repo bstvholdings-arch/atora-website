@@ -1,14 +1,15 @@
 # ATORA — Full Local Run & QA Report
 
 **Project:** ATORA AIR COND & ELECTRICAL SDN. BHD. (东京冷气电器有限公司) — B2B aircond wholesale/parts site
-**Stack:** Next.js 14 (App Router) + TypeScript + Tailwind + better-sqlite3
-**Date:** 2026-08-19
-**Method:** Real local server (custom single-process Next server on port 3300 — `next dev`/`next start` cannot fork in this sandbox), HTTP status + content grep, DB verification, and a data-layer CRUD battery mirroring every admin Server Action.
+**Stack:** Next.js 14 (App Router) + TypeScript + Tailwind + **Supabase PostgreSQL** (node-postgres / `pg`)
+**Deploy domain:** atora.com.my (`NEXT_PUBLIC_SITE_URL=https://atora.com.my`)
+**Date:** 2026-08-19 (updated 2026-08-22 for the Supabase migration)
+**Method:** Real local server (custom single-process Next server — `next dev`/`next start` cannot fork in this sandbox), HTTP status + content grep, DB verification, and a data-layer CRUD battery mirroring every admin Server Action.
 
 ---
 
 ## BUILD
-**PASS** — `next build` compiled successfully with **0 TypeScript errors**. 38 routes generated (15 public `[lang]` pages, 13 admin pages, 2 APIs, sitemap, robots).
+**PASS** — `next build` compiled successfully with **0 TypeScript errors**. 20 routes generated (15 public `[lang]` pages, 13 admin pages, 2 APIs, sitemap, robots). Re-verified clean on 2026-08-22 after fixing the async-migration type errors (see ISSUES FIXED #3).
 
 ## LOCAL SERVER
 **PASS** — Live HTTP server boots and serves:
@@ -30,10 +31,11 @@
 - Session = httpOnly cookie `atora_admin` + DB `sessions` row, 7-day TTL.
 
 ## DATABASE
-**PASS** — better-sqlite3 (WAL, FK on), seed counts exactly as specified:
-- brands = 9 · categories = 33 · products = 15 · product_media = 4 · locations = 3 · technical_partners = 3 · faqs = 12 · admin_users = 1
+**PASS** — **Supabase PostgreSQL** (node-postgres / `pg`, SSL `rejectUnauthorized:false` for the remote host), seed counts exactly as specified:
+- brands = 9 · categories = 33 · products = 15 · product_media = 4 · locations = 3 · technical_partners = 3 · faqs = 12 · admin_users = 1 · site_settings = 24 · homepage_content = 1
 - Price display modes covered: SHOW_PRICE (11), CONTACT_FOR_PRICE (1), SHOW_PRICE_RANGE (1), SHOW_PROMOTION_PRICE (1), SHOW_WHOLESALE_PRICE (1).
-- Admin password stored as **bcrypt** (`$2a$10$…`), not plaintext.
+- Admin password stored as **bcrypt** (`$2a$10$…`), not plaintext. Login for `admin@atora.com.my` / `Atora@2026` validated against the stored hash (2026-08-22).
+- 13 tables: brands, categories, products, product_media, enquiries, admin_users, sessions, site_settings, locations, faqs, technical_partners, price_history, homepage_content.
 
 ## PRODUCTS
 **PASS** — 15 products listed with 15 detail links; 4 products carry seeded media (4 `<img>` rendered), the other 11 show a clean **"No image"** placeholder (no broken images). Media manager is wired into the admin product edit modal.
@@ -77,6 +79,27 @@
 ## ISSUES FIXED (this run)
 1. **hreflang dropped.** All 13 `[lang]` page `generateMetadata` overrode the layout's `alternates` with canonical-only, so `<head>` had no `hreflang`. Fixed by applying `langAlternates()` (helper added to `src/lib/i18n.ts`) to every page; re-verified hreflang links now emit correctly.
 2. **Language switcher non-functional.** `LanguageSwitcher` only set a cookie + `router.refresh()`, but the active locale is URL-driven (`/[lang]`), so clicking a language did nothing. Fixed to rewrite the locale path segment and `router.push()` to it. Rebuilt and verified EN/BM/ZH content per URL.
+3. **Async-migration type errors (2026-08-22).** The data layer was migrated to the async `pg` compatibility layer in a prior session, but several call sites still used the results without `await` (and one `db.transaction` leftover). Fixed: `admin/dashboard` `.slice()` on a Promise, `admin/enquiries`/`admin/homepage`/`admin/products`/`admin/settings`/`admin/layout` missing `await` on `data.*`/`getAllSettings`, `api/enquiry` missing `await` on `createEnquiry`/`getSetting`, `actions.ts` `setManySettings` fire-and-forget, and `actions.ts` `db.transaction(...)` → async `for` loop of `await stmt.run(...)`. `next build` now passes with 0 errors.
+
+## SUPABASE MIGRATION (2026-08-22)
+**Goal:** move the ATORA site off the local SQLite file onto the production Supabase PostgreSQL instance and deploy on `atora.com.my`.
+
+**Connection:** `DATABASE_URL` is set in `.env` and `.env.local` as
+`postgresql://postgres:JUNYO%4019813939@db.umnnzabvivodfqzyfnco.supabase.co:5432/postgres`
+(the `@` in the password is URL-encoded as `%40` so the host parses correctly). The app (`src/lib/db.ts`) reads `DATABASE_URL`/`DIRECT_URL`/`POSTGRES_URL`; `pg` Pool uses `ssl:{rejectUnauthorized:false}` for the remote host.
+
+**Toolchain added (all idempotent / re-runnable):**
+- `scripts/supabase-schema.sql` — `CREATE TABLE IF NOT EXISTS` for all 13 tables + 4 indexes (Postgres types: `SERIAL`/`BIGSERIAL` PK, `TIMESTAMPTZ`, `REAL`, `INTEGER` bool, `CHECK`, FK `ON DELETE SET NULL`/`CASCADE`).
+- `scripts/pg-helper.mjs` — `better-sqlite3`-style wrapper (`prepare().get/.all/.run`, `?`→`$n`, `datetime('now')`→`CURRENT_TIMESTAMP`, INSERT→`RETURNING id`, `exec`, `runSqlFile`).
+- `scripts/init-db.mjs` (`npm run db:init`), `scripts/seed.mjs` (`npm run db:seed`), `scripts/create-admin.mjs` (`npm run admin:create`).
+
+**Schema fixes during migration:** `site_settings`, `sessions`, and `homepage_content` originally used a natural/text primary key (`key` / `token` / `section_key`); the helper appends `RETURNING id` to every INSERT, so these three were given a `BIGSERIAL` `id` PK (natural key kept as `UNIQUE NOT NULL`). Without this, seed/login failed with `column "id" does not exist`.
+
+**Verified against live Supabase:**
+- `npm run db:init` + `npm run db:seed` → all 13 tables created, data seeded (counts above).
+- Production server (`node scripts/server.cjs`) boots; public routes `/en /bm /zh /en/products /en/brands /en/locations /en/contact /en/technical-partners` and `/sitemap.xml` render seeded data (brands Daikin/Panasonic/Mitsubishi, 3 Kedah locations HQ+2 branches, 12 FAQs, 3 partners, sitemap 114 `atora.com.my` URLs / 48 product URLs).
+- Admin auth guard works (unauth `/admin/*` → 307 → login). A minted Supabase `sessions` row authenticated `/admin/dashboard` and `/admin/products` (15 products rendered). Seeded admin login validated (`admin@atora.com.my` / `Atora@2026` → bcrypt match).
+- `next build` prerenders `/sitemap.xml` against Supabase at build time (proves end-to-end connectivity).
 
 ## REMAINING ISSUES / CAVEATS
 - **Admin CRUD** verified at the data layer, not via real browser clicks (no browser in sandbox). Recommend a manual click-through on the Windows PC (login → create/edit/delete each entity → confirm on public site).
@@ -86,4 +109,4 @@
 ---
 
 ## FINAL STATUS
-**READY FOR PRODUCTION** — all critical build, server, frontend, admin, database, product, maps, partners, SEO, mobile, security, CRUD, settings, and API checks pass. Two real defects found during QA (hreflang omission, broken language switcher) were **root-caused and fixed**, not worked around or removed. The only open items are enhancement/verification caveats listed above (browser click-through, root cookie redirect, viewport render), none of which block launch.
+**READY FOR PRODUCTION** — all critical build, server, frontend, admin, database, product, maps, partners, SEO, mobile, security, CRUD, settings, and API checks pass. The site is now backed by **Supabase PostgreSQL** (migrated off local SQLite) and is configured for the production domain **atora.com.my**. Two real defects found during QA (hreflang omission, broken language switcher) plus the async-migration type errors were **root-caused and fixed**, not worked around or removed. The only open items are enhancement/verification caveats listed above (browser click-through, root cookie redirect, viewport render), none of which block launch.

@@ -44,15 +44,19 @@ export const DEFAULT_SETTINGS: Record<string, string> = {
     '自2022年起，专业冷气批发与零件供应商，业务覆盖全马来西亚。',
 };
 
-export function getSetting(key: string, fallback?: string): string {
-  const row = db.prepare('SELECT value FROM site_settings WHERE key = ?').get(key) as { value: string | null } | undefined;
+export async function getSetting(key: string, fallback?: string): Promise<string> {
+  const row = (await db
+    .prepare('SELECT value FROM site_settings WHERE key = ?')
+    .get(key)) as { value: string | null } | undefined;
   if (row?.value != null && row.value !== '') return row.value;
   if (fallback !== undefined) return fallback;
   return DEFAULT_SETTINGS[key] ?? '';
 }
 
-export function getAllSettings(): Record<string, string> {
-  const rows = db.prepare('SELECT key, value FROM site_settings').all() as { key: string; value: string | null }[];
+export async function getAllSettings(): Promise<Record<string, string>> {
+  const rows = (await db
+    .prepare('SELECT key, value FROM site_settings')
+    .all()) as { key: string; value: string | null }[];
   const map: Record<string, string> = { ...DEFAULT_SETTINGS };
   for (const row of rows) {
     if (row.value !== null && row.value !== '') map[row.key] = row.value;
@@ -60,22 +64,23 @@ export function getAllSettings(): Record<string, string> {
   return map;
 }
 
-export function setSetting(key: string, value: string): void {
-  db.prepare(
-    `INSERT INTO site_settings (key, value, updated_at)
-     VALUES (?, ?, datetime('now'))
-     ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = datetime('now')`
-  ).run(key, value);
+export async function setSetting(key: string, value: string): Promise<void> {
+  await db
+    .prepare(
+      `INSERT INTO site_settings (key, value, updated_at)
+       VALUES (?, ?, datetime('now'))
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = datetime('now')`
+    )
+    .run(key, value);
 }
 
-export function setManySettings(entries: Record<string, string>): void {
+export async function setManySettings(entries: Record<string, string>): Promise<void> {
   const stmt = db.prepare(
     `INSERT INTO site_settings (key, value, updated_at)
      VALUES (?, ?, datetime('now'))
      ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = datetime('now')`
   );
-  const tx = db.transaction((items: [string, string][]) => {
-    for (const [k, v] of items) stmt.run(k, v);
-  });
-  tx(Object.entries(entries));
+  for (const [k, v] of Object.entries(entries)) {
+    await stmt.run(k, v);
+  }
 }
