@@ -1,5 +1,17 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  webpack: (config) => {
+    // Bulletproof '@/...' alias so it resolves on every platform. tsconfig
+    // `paths` alone is sometimes ignored by Next's webpack in Linux/CI builds,
+    // which produced "Can't resolve '@/lib/actions'" on Vercel.
+    config.resolve.alias['@'] = path.resolve(__dirname, 'src');
+    return config;
+  },
   reactStrictMode: true,
   images: {
     // Permissive on purpose: seeded brand/partner logos and uploaded media can
