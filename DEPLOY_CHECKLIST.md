@@ -5,8 +5,11 @@ Generated 2026-08-22. Based on a full read of the actual code (`next.config.mjs`
 `src/app/page.tsx`, `package.json`, `.env` / `.env.local`).
 
 Status: CRUD verified against live Supabase (Phase A complete). Phase B config +
-env/DNS checklist done. **Phase C in progress** — Vercel decided; `vercel.json`
-added; admin password rotated; go-live runbook in §8.
+env/DNS checklist done. **GO-LIVE ACHIEVED** — Vercel production build is GREEN and
+the site is LIVE at `https://atora-website-delta.vercel.app` (`/en` renders DB data,
+`/admin/login` works, public `media` bucket exists for uploads). `vercel.json` added;
+admin password rotated. **Remaining (user):** add custom domains `atora.com.my` + `www`
++ DNS/TLS, and **revoke the GitHub PAT + Vercel token shared in chat**.
 
 ---
 
