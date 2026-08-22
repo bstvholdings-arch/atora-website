@@ -23,3 +23,5 @@ _*.sql
 
 # QA 截图证据（不进部署仓库）
 qa_*.png
+
+.vercel
