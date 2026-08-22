@@ -1,0 +1,102 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --brand-50: #eff6ff;
+  --brand-500: #1e6fd9;
+  --brand-700: #11468c;
+  --brand-900: #0b2a55;
+  --bg: #ffffff;
+  --fg: #071a36;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  color: var(--fg);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@layer base {
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-heading tracking-tight text-brand-900;
+  }
+  a {
+    @apply text-brand-600 hover:text-brand-700 transition-colors;
+  }
+}
+
+@layer components {
+  .container-fluid {
+    @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-primary {
+    @apply btn bg-brand-600 text-white hover:bg-brand-700 focus:ring-brand-500;
+  }
+  .btn-secondary {
+    @apply btn bg-white text-brand-700 border border-brand-200 hover:bg-brand-50 focus:ring-brand-300;
+  }
+  .btn-whatsapp {
+    @apply btn bg-[#25D366] text-white hover:bg-[#1ea952] focus:ring-[#25D366];
+  }
+  .btn-ghost {
+    @apply btn bg-transparent text-brand-700 hover:bg-brand-50;
+  }
+  .btn-danger {
+    @apply btn bg-red-600 text-white hover:bg-red-700 focus:ring-red-500;
+  }
+
+  .card {
+    @apply bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition;
+  }
+
+  .input {
+    @apply block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm placeholder-gray-400 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none;
+  }
+
+  .label {
+    @apply block text-sm font-medium text-gray-700 mb-1;
+  }
+
+  .badge {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
+  .badge-blue {
+    @apply badge bg-brand-100 text-brand-800;
+  }
+  .badge-green {
+    @apply badge bg-green-100 text-green-800;
+  }
+  .badge-yellow {
+    @apply badge bg-yellow-100 text-yellow-800;
+  }
+  .badge-gray {
+    @apply badge bg-gray-100 text-gray-800;
+  }
+
+  .heading-1 { @apply text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight; }
+  .heading-2 { @apply text-2xl sm:text-3xl font-bold tracking-tight; }
+  .heading-3 { @apply text-xl sm:text-2xl font-semibold; }
+
+  .section {
+    @apply py-12 sm:py-16;
+  }
+  .section-tight {
+    @apply py-8 sm:py-12;
+  }
+}
+
+/* Hide horizontal scroll on mobile in case of long URLs */
+body {
+  overflow-x: hidden;
+}

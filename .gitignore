@@ -1,0 +1,19 @@
+node_modules
+.next
+out
+dist
+.DS_Store
+*.log
+.env.local
+.env.*.local
+data/atora.db
+data/atora.db-journal
+public/uploads/*
+!public/uploads/.gitkeep
+
+# 环境变量（含真实密码，禁止提交）
+.env
+
+# 临时迁移/探查脚本
+_*.cjs
+_*.sql
