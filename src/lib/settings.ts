@@ -7,7 +7,7 @@ export const DEFAULT_SETTINGS: Record<string, string> = {
   // Company
   company_name_en: 'ATORA AIR COND & ELECTRICAL SDN. BHD.',
   company_name_bm: 'ATORA AIR COND & ELECTRICAL SDN. BHD.',
-  company_name_zh: '东京冷气电器有限公司',
+  company_name_zh: 'Atora Aircond & Electrical Sdn Bhd',
   registration_no: '202201011180 (1456877-A)',
   tagline_en: 'Professional Air Conditioning Wholesale & Parts Supplier',
   tagline_bm: 'Pembekal Borong & Alat Ganti Penyaman Udara Profesional',

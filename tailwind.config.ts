@@ -15,13 +15,20 @@ const config: Config = {
           400: '#60a5fa',
           500: '#1e6fd9',
           600: '#1559b3',
-          700: '#11468c',
-          800: '#0e3a73',
-          900: '#0b2a55',
-          950: '#071a36',
+          700: '#0f4a99',
+          800: '#0d3a73',
+          900: '#0a163d',
+          950: '#050a1f',
         },
         accent: {
-          DEFAULT: '#0b2a55',
+          DEFAULT: '#d4a857',
+          light: '#e8c478',
+          dark: '#b88a3a',
+        },
+        whatsapp: {
+          DEFAULT: '#00d4a8',
+          dark: '#00b894',
+          light: '#1de9b6',
         },
       },
       fontFamily: {
@@ -34,6 +41,9 @@ const config: Config = {
         screens: {
           '2xl': '1280px',
         },
+      },
+      boxShadow: {
+        'whatsapp-glow': '0 0 24px rgba(0, 212, 168, 0.5), 0 0 56px rgba(0, 212, 168, 0.22)',
       },
     },
   },

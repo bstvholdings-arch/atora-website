@@ -7,39 +7,39 @@
  * `datetime('now')` is rewritten to `CURRENT_TIMESTAMP`.
  * INSERT statements get `RETURNING id` appended so `.run().lastInsertRowid`
  * keeps working.
+ *
+ * ── LOCAL PREVIEW FALLBACK ──────────────────────────────────────────────
+ * If no DATABASE_URL / DIRECT_URL / POSTGRES_URL is set, this module boots an
+ * in-memory PostgreSQL instance via `pg-mem`, applies scripts/supabase-schema.sql
+ * and seeds the shared demo dataset (scripts/seed-data.mjs). This lets you run
+ * `npm run dev` with zero database setup. The moment a real connection string is
+ * provided (e.g. Supabase in production), the real `pg` Pool path is used instead
+ * and the fallback is never touched.
  */
+import fs from 'node:fs';
+import path from 'node:path';
 import { Pool } from 'pg';
 
 const connectionString =
   process.env.DATABASE_URL || process.env.DIRECT_URL || process.env.POSTGRES_URL;
 
-if (!connectionString) {
-  throw new Error(
-    'Missing DATABASE_URL / DIRECT_URL. Set it in your Vercel project env or .env.local'
-  );
-}
-
-const isRemote = /supabase|amazonaws|pooler|railway|render|neon/i.test(connectionString);
-
-const createPool = () =>
-  new Pool({
-    connectionString,
-    ssl: isRemote ? { rejectUnauthorized: false } : undefined,
-    max: 10,
-  });
+const isRemote = connectionString
+  ? /supabase|amazonaws|pooler|railway|render|neon/i.test(connectionString)
+  : false;
 
 // Singleton — Next.js dev mode hot-reloads, so guard with globalThis.
-const globalForDb = globalThis as unknown as { __atoraPool?: ReturnType<typeof createPool> };
-const pool = globalForDb.__atoraPool ?? createPool();
-if (process.env.NODE_ENV !== 'production') globalForDb.__atoraPool = pool;
+const globalForDb = globalThis as unknown as {
+  __atoraPool?: any;
+  __atoraBoot?: Promise<void> | null;
+};
 
 /** Convert SQLite-style `?` placeholders and `datetime('now')` to PostgreSQL. */
 function toPg(sql: string): string {
   let i = 0;
   let out = sql.replace(/\?/g, () => `$${++i}`);
   out = out.replace(/datetime\('now',\s*'localtime'\)/gi, 'CURRENT_TIMESTAMP');
-  out = out.replace(/datetime\('now'\)/gi, 'CURRENT_TIMESTAMP');
   out = out.replace(/datetime\('now',\s*'utc'\)/gi, 'CURRENT_TIMESTAMP');
+  out = out.replace(/datetime\('now'\)/gi, 'CURRENT_TIMESTAMP');
   // Strip any remaining datetime(...) wrapper (e.g. datetime(column) used for casting)
   out = out.replace(/datetime\(([^)]+)\)/gi, '$1');
   return out;
@@ -53,21 +53,63 @@ export interface Statement {
   run: (...params: any[]) => Promise<{ lastInsertRowid: number | bigint | undefined; changes: number }>;
 }
 
+/**
+ * Ensure a usable pool exists. Lazily boots the in-memory pg-mem database the
+ * first time it is needed when no real connection string is configured.
+ */
+async function ready(): Promise<void> {
+  if (globalForDb.__atoraPool) return;
+
+  if (connectionString) {
+    globalForDb.__atoraPool = new Pool({
+      connectionString,
+      ssl: isRemote ? { rejectUnauthorized: false } : undefined,
+      max: 10,
+    });
+    return;
+  }
+
+  // ----- Local preview fallback: in-memory PostgreSQL via pg-mem -----
+  if (!globalForDb.__atoraBoot) {
+    globalForDb.__atoraBoot = (async () => {
+      const { newDb } = await import('pg-mem');
+      const mem = newDb();
+      const { Pool: PgMemPool } = mem.adapters.createPg();
+      globalForDb.__atoraPool = new PgMemPool();
+
+      const schema = fs.readFileSync(
+        path.join(process.cwd(), 'scripts/supabase-schema.sql'),
+        'utf8'
+      );
+      await globalForDb.__atoraPool.query(schema);
+
+      const seed: any = await import('../../scripts/seed-data.mjs');
+      await seed.seedDatabase(db);
+      // eslint-disable-next-line no-console
+      console.log('[db] Using in-memory pg-mem database (no DATABASE_URL found).');
+    })();
+  }
+  await globalForDb.__atoraBoot;
+}
+
 export function prepare(sql: string): Statement {
   const psql = toPg(sql);
   const isInsert = /^\s*INSERT\s+(?:OR\s+IGNORE\s+)?INTO/i.test(psql) && !/RETURNING/i.test(psql);
   const execSql = isInsert ? `${psql} RETURNING id` : psql;
   return {
     async get(...params: any[]): Promise<Row | undefined> {
-      const r = await pool.query(execSql, params);
+      await ready();
+      const r = await globalForDb.__atoraPool.query(execSql, params);
       return r.rows[0];
     },
     async all(...params: any[]): Promise<Row[]> {
-      const r = await pool.query(execSql, params);
+      await ready();
+      const r = await globalForDb.__atoraPool.query(execSql, params);
       return r.rows;
     },
     async run(...params: any[]): Promise<{ lastInsertRowid: number | bigint | undefined; changes: number }> {
-      const r = await pool.query(execSql, params);
+      await ready();
+      const r = await globalForDb.__atoraPool.query(execSql, params);
       return {
         lastInsertRowid: r.rows[0]?.id ?? undefined,
         changes: r.rowCount ?? 0,
@@ -77,7 +119,8 @@ export function prepare(sql: string): Statement {
 }
 
 export async function exec(sql: string): Promise<void> {
-  await pool.query(sql);
+  await ready();
+  await globalForDb.__atoraPool.query(sql);
 }
 
 /** No-op when using a managed Postgres database (tables are provisioned separately). */

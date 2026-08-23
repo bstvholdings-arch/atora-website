@@ -73,8 +73,8 @@ export default async function HomePage({ params }: {
     const childCategories = categories.filter((c) => c.parent_id);
     return (<>
       {/* Hero */}
-      <section className="relative bg-gradient-to-br from-brand-900 via-brand-700 to-brand-500 text-white overflow-hidden">
-        <div className="absolute inset-0 opacity-20 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-white via-transparent to-transparent"/>
+      <section className="relative bg-gradient-to-b from-brand-950 via-brand-900 to-brand-800 text-white overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_0%,rgba(255,255,255,0.18),transparent_70%)]"/>
         <div className="container-fluid relative py-14 sm:py-20 lg:py-24 grid lg:grid-cols-2 gap-10 items-center">
           <div>
             <span className="inline-flex items-center rounded-full bg-white/10 backdrop-blur px-3 py-1 text-xs font-medium mb-5 ring-1 ring-white/20">
@@ -85,8 +85,9 @@ export default async function HomePage({ params }: {
             </h1>
             <p className="text-base sm:text-lg opacity-90 mb-8 max-w-2xl">{t(lang, 'home.heroSubtitle')}</p>
             <div className="flex flex-wrap gap-3">
-              <Link href={`/${lang}/contact`} className="btn bg-white text-brand-700 hover:bg-brand-50 px-5 py-2.5 text-sm font-semibold">{t(lang, 'home.heroCtaPrimary')}</Link>
+              <Link href={`/${lang}/contact`} className="btn bg-white text-brand-900 hover:bg-brand-50 px-5 py-2.5 text-sm font-semibold">{t(lang, 'home.heroCtaPrimary')}</Link>
               <a href={`https://wa.me/${s.whatsapp_number.replace(/[^0-9]/g, '')}`} target="_blank" rel="noopener noreferrer" className="btn-whatsapp px-5 py-2.5 text-sm font-semibold">
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2zm.01 1.67c2.2 0 4.26.86 5.82 2.42a8.225 8.225 0 0 1 2.41 5.83c0 4.54-3.7 8.23-8.24 8.23-1.48 0-2.93-.39-4.19-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.264 8.264 0 0 1-1.26-4.38c.01-4.54 3.7-8.24 8.25-8.24zM8.53 7.33c-.16 0-.43.06-.66.31-.22.25-.87.86-.87 2.07 0 1.22.89 2.39 1 2.56.14.17 1.76 2.67 4.25 3.73.59.27 1.05.42 1.41.53.59.19 1.13.16 1.56.1.48-.07 1.46-.6 1.67-1.18.21-.58.21-1.07.15-1.18-.07-.1-.23-.16-.48-.27-.25-.14-1.47-.74-1.69-.82-.23-.08-.37-.12-.56.12-.16.25-.64.81-.78.97-.15.17-.29.19-.53.07-.26-.13-1.06-.39-2-1.23-.74-.66-1.23-1.47-1.38-1.72-.12-.24-.01-.39.11-.5.11-.11.27-.29.37-.44.13-.14.17-.25.25-.41.08-.17.04-.31-.02-.43-.06-.11-.56-1.35-.77-1.84-.2-.48-.4-.42-.56-.43-.14 0-.3-.01-.47-.01z"/></svg>
                 {t(lang, 'home.heroCtaSecondary')}
               </a>
               <Link href={`/${lang}/products`} className="btn border border-white/40 text-white hover:bg-white/10 px-5 py-2.5 text-sm font-semibold">
@@ -96,26 +97,28 @@ export default async function HomePage({ params }: {
 
             <div className="mt-10 grid grid-cols-3 gap-4 max-w-md">
               {[
-            { k: '9+', v: 'Brands' },
-            { k: '100+', v: lang === 'zh' ? '产品' : lang === 'bm' ? 'Produk' : 'Products' },
-            { k: '3', v: lang === 'zh' ? '分店' : lang === 'bm' ? 'Cawangan' : 'Branches' },
-        ].map((stat) => (<div key={stat.v} className="rounded-md bg-white/10 backdrop-blur p-3 text-center">
-                  <div className="text-2xl font-bold">{stat.k}</div>
-                  <div className="text-xs opacity-80">{stat.v}</div>
-                </div>))}
+                { k: '9+', v: 'Brands' },
+                { k: '100+', v: lang === 'zh' ? '产品' : lang === 'bm' ? 'Produk' : 'Products' },
+                { k: '3', v: lang === 'zh' ? '分店' : lang === 'bm' ? 'Cawangan' : 'Branches' },
+              ].map((stat) => (
+                <div key={stat.v} className="rounded-md bg-white/95 backdrop-blur p-3 text-center shadow-lg">
+                  <div className="text-2xl font-bold text-brand-900">{stat.k}</div>
+                  <div className="text-xs text-gray-600">{stat.v}</div>
+                </div>
+              ))}
             </div>
           </div>
 
           <div className="hidden lg:block">
-            <div className="relative aspect-square max-w-md mx-auto rounded-xl bg-white/10 backdrop-blur ring-1 ring-white/20 overflow-hidden shadow-xl">
-              <div className="absolute inset-0 flex items-center justify-center p-6">
-                <div className="text-center">
-                  <div className="text-7xl font-bold text-white mb-2 tracking-tighter">ATORA</div>
-                  <div className="text-sm opacity-80">Multi-Brand · Wholesale · Parts</div>
-                  <div className="mt-4 text-xs opacity-60">{s.registration_no}</div>
+            <div className="relative aspect-square max-w-md mx-auto rounded-2xl bg-white/5 backdrop-blur-md ring-1 ring-white/15 overflow-hidden">
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6">
+                <div className="text-7xl sm:text-8xl font-bold tracking-tighter mb-2 bg-gradient-to-br from-amber-200 via-yellow-300 to-amber-500 bg-clip-text text-transparent">
+                  ATORA
                 </div>
+                <div className="text-sm text-white/80 tracking-wide">Multi-Brand · Wholesale · Parts</div>
+                <div className="mt-4 text-xs text-white/60">{s.registration_no}</div>
               </div>
-              <div className="absolute -bottom-4 -right-4 w-32 h-32 bg-brand-500/30 rounded-full blur-2xl"/>
+              <div className="absolute -top-10 -right-10 w-40 h-40 bg-brand-500/20 rounded-full blur-3xl pointer-events-none"/>
             </div>
           </div>
         </div>

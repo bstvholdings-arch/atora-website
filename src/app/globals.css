@@ -5,10 +5,13 @@
 :root {
   --brand-50: #eff6ff;
   --brand-500: #1e6fd9;
-  --brand-700: #11468c;
-  --brand-900: #0b2a55;
+  --brand-700: #0f4a99;
+  --brand-900: #0a163d;
+  --whatsapp: #00d4a8;
+  --whatsapp-dark: #00b894;
+  --accent: #d4a857;
   --bg: #ffffff;
-  --fg: #071a36;
+  --fg: #050a1f;
 }
 
 html {
@@ -47,7 +50,11 @@ body {
     @apply btn bg-white text-brand-700 border border-brand-200 hover:bg-brand-50 focus:ring-brand-300;
   }
   .btn-whatsapp {
-    @apply btn bg-[#25D366] text-white hover:bg-[#1ea952] focus:ring-[#25D366];
+    @apply btn text-white shadow-whatsapp-glow;
+    background-color: var(--whatsapp);
+  }
+  .btn-whatsapp:hover {
+    background-color: var(--whatsapp-dark);
   }
   .btn-ghost {
     @apply btn bg-transparent text-brand-700 hover:bg-brand-50;
