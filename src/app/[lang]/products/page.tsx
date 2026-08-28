@@ -87,7 +87,7 @@ export default async function ProductsListPage({ params, searchParams, }: {
 
       {products.length === 0 ? (<div className="card p-12 text-center text-gray-500">
           {t(lang, 'products.noResults')}
-        </div>) : (<div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        </div>) : (<div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {products.map((p) => (<ProductCard key={p.id} product={p} brand={brands.find((b) => b.id === p.brand_id)} media={mediaMap.get(p.id)} whatsappNumber={s.whatsapp_number} lang={lang}/>))}
         </div>)}
     </div>);
