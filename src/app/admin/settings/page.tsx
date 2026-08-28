@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 import { getCurrentAdmin } from '@/lib/auth';
 import { getAllSettings } from '@/lib/settings';
 import SettingsForm from './SettingsForm';
+import ChangePasswordForm from '../ChangePasswordForm';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,6 +20,18 @@ export default async function SettingsPage() {
         <p className="text-gray-600 text-sm">Company information, contact, SEO defaults and footer content.</p>
       </div>
       <SettingsForm initial={settings} />
+
+      <div className="mt-10">
+        <div className="mb-4">
+          <h2 className="heading-2 mb-1">Account</h2>
+          <p className="text-gray-600 text-sm">
+            Change the sign-in password for <span className="font-medium">{admin.email}</span>.
+          </p>
+        </div>
+        <div className="max-w-lg">
+          <ChangePasswordForm />
+        </div>
+      </div>
     </div>
   );
 }

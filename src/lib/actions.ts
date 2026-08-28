@@ -491,3 +491,37 @@ export async function createAdminAction(formData: FormData): Promise<{
     await db.prepare('INSERT INTO admin_users (email, name, password_hash, role) VALUES (?, ?, ?, ?)').run(email, name, hash, 'admin');
     return { ok: true };
 }
+
+/* ============================================================
+ * CHANGE OWN PASSWORD (self-service, any authenticated admin)
+ * ============================================================ */
+export async function changePasswordAction(formData: FormData): Promise<{
+    ok: boolean;
+    error?: string;
+}> {
+    const admin = await getCurrentAdmin();
+    if (!admin) redirect('/admin/login');
+
+    const current = formData.get('current_password')?.toString() ?? '';
+    const next = formData.get('new_password')?.toString() ?? '';
+    const confirm = formData.get('confirm_password')?.toString() ?? '';
+
+    if (!current || !next || !confirm)
+        return { ok: false, error: 'All fields are required.' };
+    if (next.length < 8)
+        return { ok: false, error: 'New password must be at least 8 characters.' };
+    if (next !== confirm)
+        return { ok: false, error: 'New password and confirmation do not match.' };
+
+    const row = (await db
+        .prepare('SELECT id, password_hash FROM admin_users WHERE id = ?')
+        .get(admin.id)) as { id: number; password_hash: string } | undefined;
+    if (!row) return { ok: false, error: 'Account not found.' };
+
+    const valid = await bcrypt.compare(current, row.password_hash);
+    if (!valid) return { ok: false, error: 'Current password is incorrect.' };
+
+    const hash = await bcrypt.hash(next, 10);
+    await db.prepare('UPDATE admin_users SET password_hash = ? WHERE id = ?').run(hash, admin.id);
+    return { ok: true };
+}
