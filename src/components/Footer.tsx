@@ -38,15 +38,13 @@ export default function Footer({ lang, brands, locations, company }: Props) {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
           {/* About */}
           <div className="col-span-2 md:col-span-1">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-md bg-white text-brand-700 font-bold">
-                A
-              </div>
-              <div className="leading-tight">
-                <div className="font-bold text-white">{t(lang, 'common.companyName')}</div>
-                <div className="text-xs opacity-80">{t(lang, 'common.companyNameZh')}</div>
-              </div>
-            </div>
+            <Link href={`/${lang}`} className="block mb-3">
+              <img
+                src="/atora-logo.png"
+                alt="ATORA Aircond & Electrical Sdn Bhd"
+                className="h-12 w-auto"
+              />
+            </Link>
             <p className="text-sm opacity-80 leading-relaxed">{company.footerAboutEn}</p>
             <p className="text-xs mt-3 opacity-60">
               {t(lang, 'footer.registration')}: {company.registrationNo}

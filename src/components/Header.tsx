@@ -52,29 +52,12 @@ export default function Header({ lang, whatsappNumber, companyNameEn, companyNam
       {/* Main bar — logo + nav + CTAs */}
       <div className="container-fluid flex items-center justify-between py-3">
         {/* Logo */}
-        <Link href={`/${lang}`} className="group flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-md bg-white text-brand-900 font-bold text-xl shadow-sm group-hover:bg-brand-50 transition">
-            A
-          </div>
-          <div className="leading-tight">
-            <div className="font-bold text-white text-base sm:text-lg">ATORA</div>
-            <div className="text-[11px] sm:text-xs text-white/60">
-              {(() => {
-                const name = t(lang, 'common.companyNameZh');
-                const suffix = 'Sdn Bhd';
-                if (name.endsWith(suffix)) {
-                  const main = name.slice(0, -suffix.length).trim();
-                  return (
-                    <>
-                      <div>{main}</div>
-                      <div>{suffix}</div>
-                    </>
-                  );
-                }
-                return <div>{name}</div>;
-              })()}
-            </div>
-          </div>
+        <Link href={`/${lang}`} className="group flex items-center">
+          <img
+            src="/atora-logo.png"
+            alt="ATORA Aircond & Electrical Sdn Bhd"
+            className="h-10 sm:h-12 w-auto"
+          />
         </Link>
 
         {/* Desktop nav */}
