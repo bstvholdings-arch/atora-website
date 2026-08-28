@@ -6,6 +6,7 @@ import { redirect } from 'next/navigation';
 import { getCurrentAdmin } from '@/lib/auth';
 import { data } from '@/lib/data';
 import { getAllSettings } from '@/lib/settings';
+import { logoutAction } from '@/lib/actions';
 import Link from 'next/link';
 
 export const metadata = {
@@ -39,7 +40,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <div className="flex items-center gap-3 text-sm">
             <span className="hidden sm:inline text-gray-600">{admin.name || admin.email}</span>
             <Link href="/en" target="_blank" className="text-brand-600 hover:text-brand-700 hidden sm:inline">View Site ↗</Link>
-            <form action="/admin/logout" method="post">
+            <form action={logoutAction}>
               <button type="submit" className="text-red-600 hover:text-red-700">Logout</button>
             </form>
           </div>
