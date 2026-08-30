@@ -9,6 +9,7 @@ import { data } from '@/lib/data';
 import { pickLocalized } from '@/lib/i18n';
 import { getAllSettings } from '@/lib/settings';
 import { buildProductEnquiryLink, pickDisplayPrice } from '@/lib/formatters';
+import ProductGallery from '@/components/ProductGallery';
 export async function generateMetadata({ params, }: {
     params: Promise<{
         lang: string;
@@ -58,8 +59,6 @@ export default async function ProductDetailPage({ params, }: {
     const price = pickDisplayPrice(product);
     const name = pickLocalized(product as unknown as Record<string, unknown>, 'name', lang) || product.name_en;
     const desc = pickLocalized(product as unknown as Record<string, unknown>, 'description', lang) || '';
-    const primary = media.find((m) => m.is_primary) ?? media[0];
-    const gallery = media.filter((m) => m.id !== primary?.id);
     const whatsappLink = buildProductEnquiryLink({
         whatsappNumber: s.whatsapp_number,
         productName: name,
@@ -87,17 +86,7 @@ export default async function ProductDetailPage({ params, }: {
       <div className="grid lg:grid-cols-2 gap-8 mb-12">
         {/* Image / gallery */}
         <div>
-          <div className="aspect-square bg-gray-50 rounded-lg overflow-hidden border border-gray-200 mb-3">
-            {primary ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={primary.url} alt={name} className="object-contain w-full h-full"/>) : (<div className="w-full h-full flex items-center justify-center text-gray-400">No image</div>)}
-          </div>
-          {gallery.length > 0 && (<div className="grid grid-cols-4 gap-2">
-              {gallery.slice(0, 4).map((m) => (<div key={m.id} className="aspect-square bg-gray-50 rounded overflow-hidden border border-gray-200">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={m.url} alt={name} className="object-cover w-full h-full"/>
-                </div>))}
-            </div>)}
+          <ProductGallery media={media} name={name} />
         </div>
 
         {/* Details */}

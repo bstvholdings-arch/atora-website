@@ -3,8 +3,9 @@
  */
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { LOCALES, Locale, t, langAlternates } from '@/lib/i18n';
+import { LOCALES, Locale, t, langAlternates, pickLocalized } from '@/lib/i18n';
 import { getAllSettings } from '@/lib/settings';
+import { data } from '@/lib/data';
 export async function generateMetadata({ params }: {
     params: Promise<{
         lang: string;
@@ -28,6 +29,8 @@ export default async function AboutPage({ params }: {
     const { lang: rawLang } = _params;
     const lang: Locale = (LOCALES as readonly string[]).includes(rawLang) ? (rawLang as Locale) : 'en';
     const s = await getAllSettings();
+    const story = await data.getAboutStory();
+    const photos = await data.listAboutPhotos();
     const served = ['installers', 'technicians', 'contractors', 'retailers', 'commercial', 'project', 'bulk'];
     return (<div>
       <section className="bg-gradient-to-br from-brand-900 via-brand-700 to-brand-500 text-white">
@@ -83,5 +86,53 @@ export default async function AboutPage({ params }: {
           </div>
         </div>
       </section>
+
+      {/* Our Story — managed from the admin About page */}
+      {story && (() => {
+        const storyTitle =
+          (pickLocalized(story as unknown as Record<string, unknown>, 'title', lang) as string | null) ||
+          story.title_en;
+        const storyBody =
+          (pickLocalized(story as unknown as Record<string, unknown>, 'body', lang) as string | null) ||
+          story.body_en;
+        if (!storyTitle && !storyBody) return null;
+        return (
+          <section className="section bg-gray-50/50">
+            <div className="container-fluid max-w-4xl">
+              <h2 className="heading-2 mb-6 text-center">
+                {storyTitle || (lang === 'zh' ? '我们的故事' : lang === 'bm' ? 'Kisah Kami' : 'Our Story')}
+              </h2>
+              {storyBody && (
+                <div
+                  className="rte-content text-gray-700 leading-relaxed text-base"
+                  dangerouslySetInnerHTML={{ __html: storyBody }}
+                />
+              )}
+            </div>
+          </section>
+        );
+      })()}
+
+      {/* Photo gallery — cover (is_primary) shown first */}
+      {photos.length > 0 && (
+        <section className="section">
+          <div className="container-fluid">
+            <h2 className="heading-2 mb-6 text-center">
+              {lang === 'zh' ? '我们的相册' : lang === 'bm' ? 'Galeri Kami' : 'Our Gallery'}
+            </h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+              {photos.map((ph) => (
+                <div key={ph.id} className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 bg-gray-100">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={ph.url} alt={ph.alt_text ?? ''} className="object-cover w-full h-full" />
+                  {ph.is_primary === 1 && (
+                    <span className="absolute top-2 left-2 badge-green">Cover</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
     </div>);
 }

@@ -8,7 +8,7 @@ import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import bcrypt from 'bcryptjs';
 import crypto from 'node:crypto';
-import db, { type ProductMedia } from '@/lib/db';
+import db, { type ProductMedia, type AboutContent, type AboutPhoto } from '@/lib/db';
 import { getCurrentAdmin, createSession, destroySession } from '@/lib/auth';
 import { setManySettings } from '@/lib/settings';
 import { slugify } from '@/lib/slug';
@@ -287,6 +287,80 @@ export async function getProductMediaAction(productId: number): Promise<ProductM
         .prepare('SELECT * FROM product_media WHERE product_id = ? ORDER BY display_order ASC')
         .all(productId) as ProductMedia[];
 }
+/* ----- Product album (photos) actions — used by ProductAlbumManager ----- */
+export async function addProductPhotosAction(
+    productId: number,
+    photos: { url: string; alt_text: string | null }[],
+    makeCover: boolean
+): Promise<{ ok: boolean; added?: number; error?: string }> {
+    const admin = await getCurrentAdmin();
+    if (!admin) return { ok: false, error: 'Unauthorized' };
+    if (!photos || photos.length === 0) return { ok: true, added: 0 };
+    try {
+        const existing = (await db
+            .prepare('SELECT COUNT(*) as c FROM product_media WHERE product_id = ? AND type != ?')
+            .get(productId, 'video')) as { c: number };
+        const hadPhotos = (existing?.c ?? 0) > 0;
+        const stmt = db.prepare(
+            `INSERT INTO product_media (product_id, type, url, alt_text, display_order, is_primary, is_featured)
+             VALUES (?, 'image', ?, ?, (SELECT COALESCE(MAX(display_order), 0) + 1 FROM product_media WHERE product_id = ?), ?, 0)`
+        );
+        let first = true;
+        for (const p of photos) {
+            // First uploaded photo becomes the cover when the album had none.
+            const isCover = makeCover || (!hadPhotos && first) ? 1 : 0;
+            if (isCover) {
+                await db.prepare('UPDATE product_media SET is_primary = 0 WHERE product_id = ?').run(productId);
+            }
+            await stmt.run(productId, p.url, p.alt_text ?? null, productId, isCover);
+            first = false;
+        }
+        revalidatePath('/admin/products');
+        revalidatePath('/[lang]/products', 'page');
+        revalidatePath('/[lang]', 'page');
+        return { ok: true, added: photos.length };
+    } catch (e: any) {
+        return { ok: false, error: e?.message ?? 'Failed to add photos' };
+    }
+}
+
+export async function updateProductMediaOrder(
+    productId: number,
+    orderedIds: number[]
+): Promise<{ ok: boolean; error?: string }> {
+    const admin = await getCurrentAdmin();
+    if (!admin) return { ok: false, error: 'Unauthorized' };
+    try {
+        const stmt = db.prepare('UPDATE product_media SET display_order = ? WHERE id = ? AND product_id = ?');
+        for (let idx = 0; idx < orderedIds.length; idx++) {
+            await stmt.run(idx + 1, orderedIds[idx], productId);
+        }
+        revalidatePath('/admin/products');
+        revalidatePath('/[lang]/products', 'page');
+        revalidatePath('/[lang]', 'page');
+        return { ok: true };
+    } catch (e: any) {
+        return { ok: false, error: e?.message ?? 'Failed to reorder' };
+    }
+}
+
+export async function setProductMediaCover(
+    mediaId: number,
+    productId: number
+): Promise<{ ok: boolean; error?: string }> {
+    const admin = await getCurrentAdmin();
+    if (!admin) return { ok: false, error: 'Unauthorized' };
+    try {
+        await db.prepare('UPDATE product_media SET is_primary = 0 WHERE product_id = ?').run(productId);
+        await db.prepare('UPDATE product_media SET is_primary = 1 WHERE id = ?').run(mediaId);
+        revalidatePath('/admin/products');
+        revalidatePath('/[lang]/products', 'page');
+        revalidatePath('/[lang]', 'page');
+        return { ok: true };
+    } catch (e: any) {
+        return { ok: false, error: e?.message ?? 'Failed to set cover' };
+    }
+}
 /* ============================================================
  * LOCATIONS
  * ============================================================ */
@@ -534,4 +608,123 @@ export async function changePasswordAction(formData: FormData): Promise<{
     const hash = await bcrypt.hash(next, 10);
     await db.prepare('UPDATE admin_users SET password_hash = ? WHERE id = ?').run(hash, admin.id);
     return { ok: true };
+}
+
+/* ============================================================
+ * ABOUT US — "Our Story" (rich text) + photo gallery
+ * ============================================================ */
+export async function getAboutStoryAction(): Promise<AboutContent | null> {
+    return (
+        (await db
+            .prepare("SELECT * FROM about_content WHERE section_key = 'story' LIMIT 1")
+            .get()) as AboutContent | undefined
+    ) ?? null;
+}
+
+export async function saveAboutStoryAction(formData: FormData): Promise<{ ok: boolean; error?: string }> {
+    const admin = await getCurrentAdmin();
+    if (!admin) return { ok: false, error: 'Unauthorized' };
+    try {
+        const title_en = formData.get('title_en')?.toString() || null;
+        const title_bm = formData.get('title_bm')?.toString() || null;
+        const title_zh = formData.get('title_zh')?.toString() || null;
+        const body_en = formData.get('body_en')?.toString() || null;
+        const body_bm = formData.get('body_bm')?.toString() || null;
+        const body_zh = formData.get('body_zh')?.toString() || null;
+        await db
+            .prepare(
+                `INSERT INTO about_content (section_key, title_en, title_bm, title_zh, body_en, body_bm, body_zh, updated_at)
+                 VALUES ('story', ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                 ON CONFLICT(section_key) DO UPDATE SET
+                   title_en = excluded.title_en, title_bm = excluded.title_bm, title_zh = excluded.title_zh,
+                   body_en = excluded.body_en, body_bm = excluded.body_bm, body_zh = excluded.body_zh,
+                   updated_at = CURRENT_TIMESTAMP`
+            )
+            .run(title_en, title_bm, title_zh, body_en, body_bm, body_zh);
+        revalidatePath('/[lang]/about', 'page');
+        revalidatePath('/admin/about');
+        return { ok: true };
+    } catch (e: any) {
+        return { ok: false, error: e?.message ?? 'Failed to save story' };
+    }
+}
+
+export async function listAboutPhotosAction(): Promise<AboutPhoto[]> {
+    return (await db
+        .prepare('SELECT * FROM about_gallery ORDER BY is_primary DESC, display_order ASC')
+        .all()) as AboutPhoto[];
+}
+
+export async function addAboutPhotosAction(
+    photos: { url: string; file_name: string | null; alt_text: string | null }[],
+    makeCover: boolean
+): Promise<{ ok: boolean; added?: number; error?: string }> {
+    const admin = await getCurrentAdmin();
+    if (!admin) return { ok: false, error: 'Unauthorized' };
+    if (!photos || photos.length === 0) return { ok: true, added: 0 };
+    try {
+        const existing = (await db.prepare('SELECT COUNT(*) as c FROM about_gallery').get()) as { c: number };
+        const hadPhotos = (existing?.c ?? 0) > 0;
+        const stmt = db.prepare(
+            `INSERT INTO about_gallery (url, file_name, alt_text, display_order, is_primary)
+             VALUES (?, ?, ?, (SELECT COALESCE(MAX(display_order), 0) + 1 FROM about_gallery), ?)`
+        );
+        let first = true;
+        for (const p of photos) {
+            const isCover = makeCover || (!hadPhotos && first) ? 1 : 0;
+            if (isCover) {
+                await db.prepare('UPDATE about_gallery SET is_primary = 0').run();
+            }
+            await stmt.run(p.url, p.file_name ?? null, p.alt_text ?? null, isCover);
+            first = false;
+        }
+        revalidatePath('/admin/about');
+        revalidatePath('/[lang]/about', 'page');
+        return { ok: true, added: photos.length };
+    } catch (e: any) {
+        return { ok: false, error: e?.message ?? 'Failed to add photos' };
+    }
+}
+
+export async function deleteAboutPhotoAction(id: number): Promise<{ ok: boolean; error?: string }> {
+    const admin = await getCurrentAdmin();
+    if (!admin) return { ok: false, error: 'Unauthorized' };
+    try {
+        await db.prepare('DELETE FROM about_gallery WHERE id = ?').run(id);
+        revalidatePath('/admin/about');
+        revalidatePath('/[lang]/about', 'page');
+        return { ok: true };
+    } catch (e: any) {
+        return { ok: false, error: e?.message ?? 'Failed to delete photo' };
+    }
+}
+
+export async function setAboutCoverAction(id: number): Promise<{ ok: boolean; error?: string }> {
+    const admin = await getCurrentAdmin();
+    if (!admin) return { ok: false, error: 'Unauthorized' };
+    try {
+        await db.prepare('UPDATE about_gallery SET is_primary = 0').run();
+        await db.prepare('UPDATE about_gallery SET is_primary = 1 WHERE id = ?').run(id);
+        revalidatePath('/admin/about');
+        revalidatePath('/[lang]/about', 'page');
+        return { ok: true };
+    } catch (e: any) {
+        return { ok: false, error: e?.message ?? 'Failed to set cover' };
+    }
+}
+
+export async function reorderAboutPhotosAction(orderedIds: number[]): Promise<{ ok: boolean; error?: string }> {
+    const admin = await getCurrentAdmin();
+    if (!admin) return { ok: false, error: 'Unauthorized' };
+    try {
+        const stmt = db.prepare('UPDATE about_gallery SET display_order = ? WHERE id = ?');
+        for (let idx = 0; idx < orderedIds.length; idx++) {
+            await stmt.run(idx + 1, orderedIds[idx]);
+        }
+        revalidatePath('/admin/about');
+        revalidatePath('/[lang]/about', 'page');
+        return { ok: true };
+    } catch (e: any) {
+        return { ok: false, error: e?.message ?? 'Failed to reorder' };
+    }
 }

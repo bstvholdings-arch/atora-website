@@ -14,6 +14,7 @@ import {
   getProductMediaAction,
 } from '@/lib/actions';
 import MediaUploader from '@/components/MediaUploader';
+import ProductAlbumManager from './ProductAlbumManager';
 
 const PRICE_MODES = [
   { value: 'SHOW_PRICE', label: 'Show Price' },
@@ -324,7 +325,8 @@ function ProductFormModal({
         </form>
 
         {isEdit && product && (
-          <div className="p-6 border-t border-gray-200">
+          <div className="p-6 border-t border-gray-200 space-y-6">
+            <ProductAlbumManager productId={product.id} />
             <ProductMediaManager productId={product.id} />
           </div>
         )}

@@ -173,7 +173,7 @@ export default async function HomePage({ params }: {
               </div>
               <Link href={`/${lang}/products`} className="hidden sm:inline-flex btn-secondary">{t(lang, 'common.viewAll')}</Link>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {featuredProducts.slice(0, 8).map((p) => (<ProductCard key={p.id} product={p} brand={brands.find((b) => b.id === p.brand_id)} media={mediaMap.get(p.id)} whatsappNumber={s.whatsapp_number} lang={lang}/>))}
             </div>
             <div className="text-center mt-6 sm:hidden">

@@ -14,6 +14,8 @@ import db, {
   TechnicalPartner,
   HomepageContent,
   SiteSetting,
+  AboutContent,
+  AboutPhoto,
 } from './db';
 
 const SQL = {
@@ -137,6 +139,20 @@ export const data = {
     }
     const sql = `SELECT * FROM products WHERE ${where.join(' AND ')} ORDER BY featured DESC, name_en LIMIT 200`;
     return (await db.prepare(sql).all(...params)) as Product[];
+  },
+
+  // About Us — "Our Story" (one row, section_key = 'story') + photo gallery
+  async getAboutStory(): Promise<AboutContent | null> {
+    return (
+      (await db.prepare("SELECT * FROM about_content WHERE section_key = 'story' LIMIT 1").get()) as
+        | AboutContent
+        | undefined
+    ) ?? null;
+  },
+  async listAboutPhotos(): Promise<AboutPhoto[]> {
+    return (await db
+      .prepare('SELECT * FROM about_gallery ORDER BY is_primary DESC, display_order ASC')
+      .all()) as AboutPhoto[];
   },
 
   // Enquiries
@@ -277,4 +293,6 @@ export type {
   TechnicalPartner,
   HomepageContent,
   SiteSetting,
+  AboutContent,
+  AboutPhoto,
 };

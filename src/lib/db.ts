@@ -200,6 +200,7 @@ export type ProductMedia = {
   display_order: number;
   is_primary: number;
   is_featured: number;
+  created_at: string;
 };
 
 export type Enquiry = {
@@ -331,4 +332,28 @@ export type HomepageContent = {
   cta_label_zh: string | null;
   cta_url: string | null;
   display_order: number;
+};
+
+/** "Our Story" rich-text block on the About page (one row per section_key). */
+export type AboutContent = {
+  id: number;
+  section_key: string;
+  title_en: string | null;
+  title_bm: string | null;
+  title_zh: string | null;
+  body_en: string | null;
+  body_bm: string | null;
+  body_zh: string | null;
+  updated_at: string;
+};
+
+/** Photo gallery on the About page. Cover = is_primary, order = display_order. */
+export type AboutPhoto = {
+  id: number;
+  url: string;
+  file_name: string | null;
+  alt_text: string | null;
+  display_order: number;
+  is_primary: number;
+  created_at: string;
 };

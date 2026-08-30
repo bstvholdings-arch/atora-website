@@ -240,3 +240,25 @@ CREATE INDEX IF NOT EXISTS idx_products_brand ON products(brand_id);
 CREATE INDEX IF NOT EXISTS idx_products_category ON products(category_id);
 CREATE INDEX IF NOT EXISTS idx_product_media_product ON product_media(product_id);
 CREATE INDEX IF NOT EXISTS idx_enquiries_status ON enquiries(status);
+
+CREATE TABLE IF NOT EXISTS about_content (
+  id SERIAL PRIMARY KEY,
+  section_key TEXT UNIQUE NOT NULL,
+  title_en TEXT,
+  title_bm TEXT,
+  title_zh TEXT,
+  body_en TEXT,
+  body_bm TEXT,
+  body_zh TEXT,
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS about_gallery (
+  id SERIAL PRIMARY KEY,
+  url TEXT NOT NULL,
+  file_name TEXT,
+  alt_text TEXT,
+  display_order INTEGER DEFAULT 0,
+  is_primary INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT now()
+);

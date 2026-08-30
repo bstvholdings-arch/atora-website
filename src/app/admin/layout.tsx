@@ -64,6 +64,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             </NavSection>
             <NavSection title="Locations & Content">
               <NavLink href="/admin/locations" label={`Locations (${counts.locations})`} />
+              <NavLink href="/admin/about" label="About Us" />
               <NavLink href="/admin/homepage" label="Homepage Content" />
               <NavLink href="/admin/faqs" label="FAQs" />
             </NavSection>
