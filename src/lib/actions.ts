@@ -12,6 +12,7 @@ import db, { type ProductMedia, type AboutContent, type AboutPhoto } from '@/lib
 import { getCurrentAdmin, createSession, destroySession } from '@/lib/auth';
 import { setManySettings } from '@/lib/settings';
 import { slugify } from '@/lib/slug';
+import { parsePublicStorageUrl, deleteFromStorage } from '@/lib/storage';
 /* ============================================================
  * AUTH
  * ============================================================ */
@@ -177,6 +178,28 @@ export async function createProductAction(formData: FormData): Promise<void> {
        stock_status, retail_price, wholesale_price, promotion_price, price_min, price_max, currency, price_display_mode,
        featured, status, seo_title_en, seo_description_en)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(slug, formData.get('sku')?.toString() || null, name_en, formData.get('name_bm')?.toString() || null, formData.get('name_zh')?.toString() || null, Number(formData.get('brand_id') || 0) || null, Number(formData.get('category_id') || 0) || null, formData.get('model')?.toString() || null, formData.get('capacity')?.toString() || null, formData.get('product_type')?.toString() || null, formData.get('description_en')?.toString() || null, formData.get('description_bm')?.toString() || null, formData.get('description_zh')?.toString() || null, formData.get('specifications')?.toString() || null, formData.get('stock_status')?.toString() || 'in_stock', numOrNull(formData.get('retail_price')), numOrNull(formData.get('wholesale_price')), numOrNull(formData.get('promotion_price')), numOrNull(formData.get('price_min')), numOrNull(formData.get('price_max')), formData.get('currency')?.toString() || 'RM', formData.get('price_display_mode')?.toString() || 'SHOW_PRICE', formData.get('featured') ? 1 : 0, formData.get('status') === 'off' ? 0 : 1, formData.get('seo_title_en')?.toString() || null, formData.get('seo_description_en')?.toString() || null);
+    const productId = Number(info.lastInsertRowid);
+
+    // New Product modal may have attached images (public Storage URLs) — store them
+    // as product_media rows. The first image becomes the cover when the album is empty.
+    const imagesRaw = formData.get('images')?.toString();
+    if (productId && imagesRaw) {
+        try {
+            const arr = JSON.parse(imagesRaw);
+            if (Array.isArray(arr)) {
+                const photos = arr
+                    .filter((x) => x && typeof x.url === 'string')
+                    .map((x) => ({ url: x.url as string, alt_text: (x.alt_text as string | null) ?? null }));
+                if (photos.length > 0) {
+                    await addProductPhotosAction(productId, photos, false);
+                }
+            }
+        } catch {
+            // Non-fatal: the product is created; images can be added later in the edit modal.
+            console.warn('[createProductAction] Failed to parse images payload; skipping product_media insert.');
+        }
+    }
+
     revalidatePath('/[lang]/products', 'page');
     revalidatePath('/[lang]', 'page');
 }
@@ -254,10 +277,26 @@ export async function addProductMediaAction(productId: number, formData: FormDat
      VALUES (?, ?, ?, ?, (SELECT COALESCE(MAX(display_order), 0) + 1 FROM product_media WHERE product_id = ?), ?, 0)`).run(productId, type, url, alt, productId, isPrimary);
     revalidatePath('/admin/products');
 }
+/** Best-effort delete of a Supabase Storage object given its public URL. */
+async function deleteStorageFileByUrl(url: string | null | undefined): Promise<void> {
+    if (!url) return;
+    const parsed = parsePublicStorageUrl(url);
+    if (!parsed) return; // not a Supabase public URL (e.g. local upload) — nothing to do
+    try {
+        await deleteFromStorage(parsed.bucket, parsed.path);
+    } catch (e) {
+        console.warn('[actions] Failed to delete storage object for', url, '-', e);
+    }
+}
+
 export async function deleteProductMediaAction(mediaId: number): Promise<void> {
     const admin = await getCurrentAdmin();
     if (!admin)
         redirect('/admin/login');
+    const row = (await db.prepare('SELECT url FROM product_media WHERE id = ?').get(mediaId)) as
+        | { url: string }
+        | undefined;
+    if (row?.url) await deleteStorageFileByUrl(row.url);
     await db.prepare('DELETE FROM product_media WHERE id = ?').run(mediaId);
     revalidatePath('/admin/products');
 }
@@ -690,6 +729,10 @@ export async function deleteAboutPhotoAction(id: number): Promise<{ ok: boolean;
     const admin = await getCurrentAdmin();
     if (!admin) return { ok: false, error: 'Unauthorized' };
     try {
+        const row = (await db.prepare('SELECT url FROM about_gallery WHERE id = ?').get(id)) as
+            | { url: string }
+            | undefined;
+        if (row?.url) await deleteStorageFileByUrl(row.url);
         await db.prepare('DELETE FROM about_gallery WHERE id = ?').run(id);
         revalidatePath('/admin/about');
         revalidatePath('/[lang]/about', 'page');

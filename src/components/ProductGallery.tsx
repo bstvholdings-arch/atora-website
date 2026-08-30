@@ -8,6 +8,10 @@
 import { useState } from 'react';
 import type { ProductMedia } from '@/lib/db';
 
+// Self-contained placeholder shown when a product has no images.
+const PLACEHOLDER_IMAGE =
+  "data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='400'%20height='400'%3E%3Crect%20width='100%25'%20height='100%25'%20fill='%23f3f4f6'/%3E%3Cg%20fill='none'%20stroke='%23cbd5e1'%20stroke-width='14'%3E%3Crect%20x='120'%20y='130'%20width='160'%20height='140'%20rx='10'/%3E%3Ccircle%20cx='165'%20cy='180'%20r='18'/%3E%3Cpath%20d='M128%20260%20l46%20-46%2036%2036%2028%20-28%2050%2050'/%3E%3C/g%3E%3C/svg%3E";
+
 export default function ProductGallery({ media, name }: { media: ProductMedia[]; name: string }) {
     // Cover first, then display_order.
     const ordered = [...media].sort((a, b) => {
@@ -20,8 +24,9 @@ export default function ProductGallery({ media, name }: { media: ProductMedia[];
 
     if (ordered.length === 0) {
         return (
-            <div className="aspect-square bg-gray-50 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400">
-                No image
+            <div className="aspect-square bg-gray-50 rounded-lg border border-gray-200 flex items-center justify-center overflow-hidden">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={PLACEHOLDER_IMAGE} alt="No image available" className="object-cover w-full h-full opacity-90" />
             </div>
         );
     }

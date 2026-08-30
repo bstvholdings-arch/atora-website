@@ -144,11 +144,15 @@ function ProductFormModal({
 }) {
   const isEdit = Boolean(product);
   const [submitting, setSubmitting] = useState(false);
+  const [images, setImages] = useState<{ url: string; alt_text: string | null }[]>([]);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setSubmitting(true);
     const fd = new FormData(e.currentTarget);
+    // Attach the uploaded product images (public Storage URLs) so the server
+    // action can persist them as product_media rows.
+    fd.append('images', JSON.stringify(images));
     try {
       if (isEdit && product) await updateProductAction(product.id, fd);
       else await createProductAction(fd);
@@ -250,6 +254,11 @@ function ProductFormModal({
             <label className="label">Specifications</label>
             <textarea name="specifications" rows={3} defaultValue={p?.specifications ?? ''} className="input" placeholder="Power, dimensions, weight, etc." />
           </div>
+
+          {/* Product Images — create mode only. Edit mode manages images via the album below. */}
+          {!isEdit && (
+            <ProductImagesPicker images={images} onChange={setImages} />
+          )}
 
           {/* Pricing */}
           <div className="rounded-md bg-brand-50/50 p-4 space-y-3">
@@ -449,6 +458,132 @@ function ProductMediaManager({ productId }: { productId: number }) {
           {busy ? 'Adding…' : 'Add Media'}
         </button>
       </form>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------
+ * Product Images picker — used in the "New Product" modal (create mode).
+ * Uploads multiple images to the `product-images` Storage bucket via the
+ * /api/product-images route (service-role key stays server-side), shows
+ * previews, and lets the admin delete a pending upload (which also removes
+ * the object from Storage). The first image is the storefront cover.
+ * ------------------------------------------------------------------ */
+type PickedImage = { url: string; alt_text: string | null };
+
+function ProductImagesPicker({
+  images,
+  onChange,
+}: {
+  images: PickedImage[];
+  onChange: (next: PickedImage[]) => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function onFiles(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    e.currentTarget.value = ''; // allow re-selecting the same file
+    if (files.length === 0) return;
+
+    setBusy(true);
+    setError(null);
+    const uploaded: PickedImage[] = [...images];
+    try {
+      for (const file of files) {
+        const form = new FormData();
+        form.append('file', file);
+        const res = await fetch('/api/product-images', { method: 'POST', body: form });
+        const data = await res.json();
+        if (!data.ok) {
+          setError(data.error ?? 'Upload failed');
+          continue;
+        }
+        uploaded.push({ url: data.url as string, alt_text: null });
+      }
+      onChange(uploaded);
+    } catch {
+      setError('Upload failed — please try again');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onRemove(idx: number) {
+    const target = images[idx];
+    if (!target) return;
+    onChange(images.filter((_, i) => i !== idx));
+    // Best-effort: also delete the object from Storage so it isn't orphaned.
+    try {
+      await fetch('/api/product-images', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: target.url }),
+      });
+    } catch {
+      /* ignore — the local state is already updated */
+    }
+  }
+
+  function makeCover(idx: number) {
+    const target = images[idx];
+    if (!target) return;
+    onChange([target, ...images.filter((_, i) => i !== idx)]);
+  }
+
+  return (
+    <div className="rounded-md border border-gray-200 p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <h3 className="font-semibold text-brand-800">Product Images</h3>
+        <span className="text-xs text-gray-500">{images.length} image(s) · first = cover</span>
+      </div>
+      <p className="text-xs text-gray-500">
+        Upload JPG / PNG / WEBP (max 8MB each). The first image becomes the cover shown on the storefront.
+      </p>
+      {error && <p className="text-xs text-red-600">{error}</p>}
+
+      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+        {images.map((img, i) => (
+          <div key={img.url} className="relative border rounded-md bg-white p-1">
+            {i === 0 && (
+              <span className="absolute top-1 left-1 bg-brand-600 text-white text-[10px] px-1.5 py-0.5 rounded">
+                Cover
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => onRemove(i)}
+              className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs leading-none shadow"
+              aria-label="Remove image"
+            >
+              ×
+            </button>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={img.url} alt="" className="h-20 w-full object-cover rounded" />
+            {i !== 0 && (
+              <button
+                type="button"
+                onClick={() => makeCover(i)}
+                className="mt-1 w-full text-[10px] text-brand-600 hover:text-brand-700"
+              >
+                Set cover
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <label className="inline-flex items-center gap-2 cursor-pointer btn-secondary text-sm w-max">
+        <input
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          multiple
+          className="hidden"
+          onChange={onFiles}
+          disabled={busy}
+        />
+        {busy ? 'Uploading…' : '+ Add images'}
+      </label>
     </div>
   );
 }
