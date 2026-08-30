@@ -64,6 +64,7 @@ export async function createBrandAction(formData: FormData): Promise<void> {
     await db.prepare(`INSERT INTO brands (slug, name_en, name_bm, name_zh, logo, description_en, description_bm, description_zh, display_order, featured, status)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(slug, name_en, formData.get('name_bm')?.toString() || null, formData.get('name_zh')?.toString() || null, formData.get('logo')?.toString() || null, formData.get('description_en')?.toString() || null, formData.get('description_bm')?.toString() || null, formData.get('description_zh')?.toString() || null, Number(formData.get('display_order') || 0), formData.get('featured') ? 1 : 0, formData.get('status') === 'off' ? 0 : 1);
     revalidatePath('/[lang]/brands', 'page');
+    revalidatePath('/[lang]', 'page');
 }
 export async function updateBrandAction(id: number, formData: FormData): Promise<void> {
     const admin = await getCurrentAdmin();
@@ -76,6 +77,7 @@ export async function updateBrandAction(id: number, formData: FormData): Promise
        updated_at = datetime('now')
      WHERE id = ?`).run(formData.get('name_en')?.toString() || '', formData.get('name_bm')?.toString() || null, formData.get('name_zh')?.toString() || null, formData.get('logo')?.toString() || null, formData.get('description_en')?.toString() || null, formData.get('description_bm')?.toString() || null, formData.get('description_zh')?.toString() || null, Number(formData.get('display_order') || 0), formData.get('featured') ? 1 : 0, formData.get('status') === 'off' ? 0 : 1, id);
     revalidatePath('/[lang]/brands', 'page');
+    revalidatePath('/[lang]', 'page');
 }
 export async function deleteBrandAction(id: number): Promise<void> {
     const admin = await getCurrentAdmin();
@@ -83,6 +85,7 @@ export async function deleteBrandAction(id: number): Promise<void> {
         redirect('/admin/login');
     await db.prepare('DELETE FROM brands WHERE id = ?').run(id);
     revalidatePath('/[lang]/brands', 'page');
+    revalidatePath('/[lang]', 'page');
 }
 /* ============================================================
  * CATEGORIES
@@ -175,6 +178,7 @@ export async function createProductAction(formData: FormData): Promise<void> {
        featured, status, seo_title_en, seo_description_en)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(slug, formData.get('sku')?.toString() || null, name_en, formData.get('name_bm')?.toString() || null, formData.get('name_zh')?.toString() || null, Number(formData.get('brand_id') || 0) || null, Number(formData.get('category_id') || 0) || null, formData.get('model')?.toString() || null, formData.get('capacity')?.toString() || null, formData.get('product_type')?.toString() || null, formData.get('description_en')?.toString() || null, formData.get('description_bm')?.toString() || null, formData.get('description_zh')?.toString() || null, formData.get('specifications')?.toString() || null, formData.get('stock_status')?.toString() || 'in_stock', numOrNull(formData.get('retail_price')), numOrNull(formData.get('wholesale_price')), numOrNull(formData.get('promotion_price')), numOrNull(formData.get('price_min')), numOrNull(formData.get('price_max')), formData.get('currency')?.toString() || 'RM', formData.get('price_display_mode')?.toString() || 'SHOW_PRICE', formData.get('featured') ? 1 : 0, formData.get('status') === 'off' ? 0 : 1, formData.get('seo_title_en')?.toString() || null, formData.get('seo_description_en')?.toString() || null);
     revalidatePath('/[lang]/products', 'page');
+    revalidatePath('/[lang]', 'page');
 }
 export async function updateProductAction(id: number, formData: FormData): Promise<void> {
     const admin = await getCurrentAdmin();
@@ -204,6 +208,7 @@ export async function updateProductAction(id: number, formData: FormData): Promi
     };
     await writePriceHistory(id, admin.id, before ?? { retail_price: null, wholesale_price: null, promotion_price: null }, after);
     revalidatePath('/[lang]/products', 'page');
+    revalidatePath('/[lang]', 'page');
     revalidatePath(`/[lang]/products/${formData.get('slug')}`, 'page');
 }
 export async function deleteProductAction(id: number): Promise<void> {
@@ -212,6 +217,7 @@ export async function deleteProductAction(id: number): Promise<void> {
         redirect('/admin/login');
     await db.prepare('DELETE FROM products WHERE id = ?').run(id);
     revalidatePath('/[lang]/products', 'page');
+    revalidatePath('/[lang]', 'page');
 }
 export async function duplicateProductAction(id: number): Promise<void> {
     const admin = await getCurrentAdmin();
@@ -227,6 +233,7 @@ export async function duplicateProductAction(id: number): Promise<void> {
        featured, status)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(newSlug, row.sku, `${row.name_en} (Copy)`, row.name_bm, row.name_zh, row.brand_id, row.category_id, row.model, row.capacity, row.product_type, row.description_en, row.description_bm, row.description_zh, row.specifications, row.stock_status, row.retail_price, row.wholesale_price, row.promotion_price, row.price_min, row.price_max, row.currency, row.price_display_mode, 0, row.status);
     revalidatePath('/[lang]/products', 'page');
+    revalidatePath('/[lang]', 'page');
 }
 /* ----- Product media actions ----- */
 export async function addProductMediaAction(productId: number, formData: FormData): Promise<void> {
@@ -306,6 +313,7 @@ export async function createLocationAction(formData: FormData): Promise<void> {
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(slug, name_en, formData.get('name_bm')?.toString() || null, formData.get('name_zh')?.toString() || null, formData.get('type')?.toString() || 'branch', formData.get('is_hq') ? 1 : 0, formData.get('address')?.toString() || null, formData.get('city')?.toString() || null, formData.get('state')?.toString() || null, formData.get('postal_code')?.toString() || null, formData.get('country')?.toString() || 'Malaysia', formData.get('telephone')?.toString() || null, formData.get('whatsapp')?.toString() || null, formData.get('email')?.toString() || null, formData.get('opening_hours')?.toString() || null, formData.get('google_maps_url')?.toString() || null, formData.get('google_maps_place_id')?.toString() || null, numOrNull(formData.get('latitude')), numOrNull(formData.get('longitude')), formData.get('photo_url')?.toString() || null, formData.get('description_en')?.toString() || null, formData.get('description_bm')?.toString() || null, formData.get('description_zh')?.toString() || null, Number(formData.get('display_order') || 0), formData.get('status') === 'off' ? 0 : 1);
     revalidatePath('/admin/locations');
     revalidatePath('/[lang]/locations', 'page');
+    revalidatePath('/[lang]', 'page');
 }
 export async function updateLocationAction(id: number, formData: FormData): Promise<void> {
     const admin = await getCurrentAdmin();
@@ -322,6 +330,7 @@ export async function updateLocationAction(id: number, formData: FormData): Prom
      WHERE id = ?`).run(formData.get('name_en')?.toString() || '', formData.get('name_bm')?.toString() || null, formData.get('name_zh')?.toString() || null, formData.get('type')?.toString() || 'branch', formData.get('is_hq') ? 1 : 0, formData.get('address')?.toString() || null, formData.get('city')?.toString() || null, formData.get('state')?.toString() || null, formData.get('postal_code')?.toString() || null, formData.get('country')?.toString() || 'Malaysia', formData.get('telephone')?.toString() || null, formData.get('whatsapp')?.toString() || null, formData.get('email')?.toString() || null, formData.get('opening_hours')?.toString() || null, formData.get('google_maps_url')?.toString() || null, formData.get('google_maps_place_id')?.toString() || null, numOrNull(formData.get('latitude')), numOrNull(formData.get('longitude')), formData.get('photo_url')?.toString() || null, formData.get('description_en')?.toString() || null, formData.get('description_bm')?.toString() || null, formData.get('description_zh')?.toString() || null, Number(formData.get('display_order') || 0), formData.get('status') === 'off' ? 0 : 1, id);
     revalidatePath('/admin/locations');
     revalidatePath('/[lang]/locations', 'page');
+    revalidatePath('/[lang]', 'page');
 }
 export async function deleteLocationAction(id: number): Promise<void> {
     const admin = await getCurrentAdmin();
@@ -329,6 +338,7 @@ export async function deleteLocationAction(id: number): Promise<void> {
         redirect('/admin/login');
     await db.prepare('DELETE FROM locations WHERE id = ?').run(id);
     revalidatePath('/[lang]/locations', 'page');
+    revalidatePath('/[lang]', 'page');
 }
 /* ============================================================
  * TECHNICAL PARTNERS

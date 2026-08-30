@@ -97,9 +97,9 @@ export default async function HomePage({ params }: {
 
             <div className="mt-10 grid grid-cols-3 gap-4 max-w-md">
               {[
-                { k: '9+', v: 'Brands' },
-                { k: '100+', v: lang === 'zh' ? '产品' : lang === 'bm' ? 'Produk' : 'Products' },
-                { k: '3', v: lang === 'zh' ? '分店' : lang === 'bm' ? 'Cawangan' : 'Branches' },
+                { k: String(brands.length), v: 'Brands' },
+                { k: String(allProducts.length), v: lang === 'zh' ? '产品' : lang === 'bm' ? 'Produk' : 'Products' },
+                { k: String(locations.length), v: lang === 'zh' ? '分店' : lang === 'bm' ? 'Cawangan' : 'Branches' },
               ].map((stat) => (
                 <div key={stat.v} className="rounded-md bg-white/95 backdrop-blur p-3 text-center shadow-lg">
                   <div className="text-2xl font-bold text-brand-900">{stat.k}</div>
@@ -139,7 +139,7 @@ export default async function HomePage({ params }: {
               <p className="text-gray-600">{t(lang, 'home.brandsSub')}</p>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-              {brands.slice(0, 10).map((b) => (<BrandCard key={b.id} brand={b} lang={lang}/>))}
+              {brands.map((b) => (<BrandCard key={b.id} brand={b} lang={lang}/>))}
             </div>
           </div>
         </section>)}
@@ -294,7 +294,7 @@ export default async function HomePage({ params }: {
               <Link href={`/${lang}/locations`} className="hidden sm:inline-flex btn-secondary">{t(lang, 'common.viewAll')}</Link>
             </div>
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {locations.slice(0, 3).map((loc) => (<LocationCard key={loc.id} location={loc} lang={lang}/>))}
+              {locations.map((loc) => (<LocationCard key={loc.id} location={loc} lang={lang}/>))}
             </div>
           </div>
         </section>)}
