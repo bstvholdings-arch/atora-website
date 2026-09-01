@@ -1,33 +1,45 @@
 /**
  * /brands/[slug] — brand detail page with its products.
+ *
+ * GEO note: ATORA is an INDEPENDENT multi-brand supplier. We never claim to be
+ * an "official distributor" or "authorised dealer" of any brand.
  */
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { LOCALES, Locale, t, langAlternates } from '@/lib/i18n';
+import { LOCALES, Locale, t, pickLocalized } from '@/lib/i18n';
 import { data, type ProductMedia } from '@/lib/data';
-import { pickLocalized } from '@/lib/i18n';
 import { getAllSettings } from '@/lib/settings';
+import { absoluteUrl, buildPageMetadata } from '@/lib/seo';
+import { breadcrumbSchema, brandSchema, itemListSchema, webPageSchema } from '@/lib/schema';
+import JsonLd from '@/components/JsonLd';
 import ProductCard from '@/components/ProductCard';
+
 export async function generateMetadata({ params, }: {
     params: Promise<{
         lang: string;
         slug: string;
     }>;
-}): Promise<Metadata> {
+}) {
     let _params = await params;
     const { lang: rawLang, slug } = _params;
     const lang: Locale = (LOCALES as readonly string[]).includes(rawLang) ? (rawLang as Locale) : 'en';
     const brand = await data.getBrandBySlug(slug);
     if (!brand)
-        return { title: 'Brand — ATORA' };
+        return { title: 'Brand — ATORA', robots: { index: false, follow: false } };
     const name = pickLocalized(brand as unknown as Record<string, unknown>, 'name', lang) || brand.name_en;
-    const desc = pickLocalized(brand as unknown as Record<string, unknown>, 'description', lang) || brand.description_en;
-    return {
-        title: `${name} — ATORA`,
-        description: desc ?? `${name} aircond products — ATORA Malaysia.`,
-        alternates: langAlternates(`/${lang}/brands/${brand.slug}`),
-    };
+    const desc =
+        pickLocalized(brand as unknown as Record<string, unknown>, 'description', lang) ||
+        brand.description_en ||
+        `${name} air conditioners and spare parts are supplied by ATORA across Malaysia. ATORA is an independent multi-brand supplier and is not an authorised distributor of ${name}.`;
+    return buildPageMetadata({
+        lang,
+        path: `/${lang}/brands/${brand.slug}`,
+        title: `${name} Aircond Supplier Malaysia — ATORA`,
+        description: desc,
+        images: brand.logo ? [brand.logo] : undefined,
+    });
 }
+
 export default async function BrandDetailPage({ params, }: {
     params: Promise<{
         lang: string;
@@ -48,7 +60,29 @@ export default async function BrandDetailPage({ params, }: {
     }
     const name = pickLocalized(brand as unknown as Record<string, unknown>, 'name', lang) || brand.name_en;
     const desc = pickLocalized(brand as unknown as Record<string, unknown>, 'description', lang) || brand.description_en;
+    const path = `/${lang}/brands/${brand.slug}`;
+
+    const jsonLd = [
+        breadcrumbSchema(`/${lang}/brands`, [
+            { name: t(lang, 'nav.home'), url: `/${lang}` },
+            { name: t(lang, 'nav.brands'), url: `/${lang}/brands` },
+            { name, url: path },
+        ]),
+        brandSchema({ brand, lang, path, productCount: products.length }),
+        itemListSchema({
+            path,
+            name: `${name} products supplied by ATORA`,
+            items: products.map((p) => ({
+                name: pickLocalized(p as unknown as Record<string, unknown>, 'name', lang) || p.name_en,
+                url: `/${lang}/products/${p.slug}`,
+            })),
+        }),
+        webPageSchema({ lang, path, title: `${name} Aircond Supplier Malaysia — ATORA`, description: desc || undefined }),
+    ];
+
     return (<div className="container-fluid py-8">
+      <JsonLd id="brand-page" data={jsonLd} />
+
       <nav className="text-sm text-gray-500 mb-4">
         <a href={`/${lang}`} className="hover:text-brand-700">{t(lang, 'nav.home')}</a>
         <span className="mx-2">/</span>
@@ -66,7 +100,9 @@ export default async function BrandDetailPage({ params, }: {
         <div>
           <h1 className="heading-1 mb-2">{name}</h1>
           {desc && <p className="text-gray-600 max-w-3xl">{desc}</p>}
-          <p className="text-sm text-gray-500 mt-3">{products.length} products</p>
+          <p className="text-sm text-gray-500 mt-3">
+            {products.length} products · Supplied by ATORA across Malaysia
+          </p>
         </div>
       </header>
 

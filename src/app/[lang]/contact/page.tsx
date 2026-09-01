@@ -2,8 +2,11 @@
  * /contact — public contact form (also saves to DB).
  */
 import type { Metadata } from 'next';
-import { LOCALES, Locale, t, langAlternates } from '@/lib/i18n';
+import { LOCALES, Locale, t } from '@/lib/i18n';
 import { getAllSettings } from '@/lib/settings';
+import { buildPageMetadata } from '@/lib/seo';
+import { breadcrumbSchema, webPageSchema } from '@/lib/schema';
+import JsonLd from '@/components/JsonLd';
 import ContactForm from '@/components/ContactForm';
 export async function generateMetadata({ params }: {
     params: Promise<{
@@ -13,11 +16,12 @@ export async function generateMetadata({ params }: {
     let _params = await params;
     const { lang: rawLang } = _params;
     const lang: Locale = (LOCALES as readonly string[]).includes(rawLang) ? (rawLang as Locale) : 'en';
-    return {
+    return buildPageMetadata({
+        lang,
+        path: `/${lang}/contact`,
         title: `${t(lang, 'contact.pageTitle')} — ATORA`,
         description: t(lang, 'contact.pageSub'),
-        alternates: langAlternates(`/${lang}/contact`),
-    };
+    });
 }
 export default async function ContactPage({ params, searchParams, }: {
     params: Promise<{
@@ -34,7 +38,16 @@ export default async function ContactPage({ params, searchParams, }: {
     const lang: Locale = (LOCALES as readonly string[]).includes(rawLang) ? (rawLang as Locale) : 'en';
     const sp = _searchParams;
     const s = await getAllSettings();
+    const jsonLd = [
+        breadcrumbSchema(`/${lang}/contact`, [
+            { name: t(lang, 'nav.home'), url: `/${lang}` },
+            { name: t(lang, 'nav.contact'), url: `/${lang}/contact` },
+        ]),
+        webPageSchema({ lang, path: `/${lang}/contact`, title: `${t(lang, 'contact.pageTitle')} — ATORA`, description: t(lang, 'contact.pageSub') }),
+    ];
     return (<div className="container-fluid py-8">
+      <JsonLd id="contact-page" data={jsonLd} />
+
       <header className="mb-8">
         <h1 className="heading-1 mb-2">{t(lang, 'contact.pageTitle')}</h1>
         <p className="text-gray-600">{t(lang, 'contact.pageSub')}</p>

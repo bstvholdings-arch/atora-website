@@ -4,12 +4,16 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { LOCALES, Locale, t, langAlternates } from '@/lib/i18n';
-import { data } from '@/lib/data';
-import { pickLocalized } from '@/lib/i18n';
+import { LOCALES, Locale, t, pickLocalized } from '@/lib/i18n';
+import { data, resolveBrand } from '@/lib/data';
 import { getAllSettings } from '@/lib/settings';
+import { absoluteUrl } from '@/lib/seo';
 import { buildProductEnquiryLink, pickDisplayPrice } from '@/lib/formatters';
+import { buildPageMetadata } from '@/lib/seo';
+import { breadcrumbSchema, productSchema, webPageSchema } from '@/lib/schema';
 import ProductGallery from '@/components/ProductGallery';
+import ProductCard from '@/components/ProductCard';
+import JsonLd from '@/components/JsonLd';
 export async function generateMetadata({ params, }: {
     params: Promise<{
         lang: string;
@@ -21,20 +25,21 @@ export async function generateMetadata({ params, }: {
     const lang: Locale = (LOCALES as readonly string[]).includes(rawLang) ? (rawLang as Locale) : 'en';
     const product = await data.getProductBySlug(slug);
     if (!product)
-        return { title: t(lang, 'products.productNotFound') };
+        return { title: t(lang, 'products.productNotFound'), robots: { index: false, follow: false } };
     const name = pickLocalized(product as unknown as Record<string, unknown>, 'name', lang) || product.name_en;
-    return {
-        title: `${name} — ATORA`,
-        description: pickLocalized(product as unknown as Record<string, unknown>, 'description', lang) ||
-            product.seo_description_en ||
-            `${name} — Aircond wholesale & parts from ATORA Malaysia.`,
-        alternates: langAlternates(`/${lang}/products/${product.slug}`),
-        openGraph: {
-            title: name,
-            description: product.seo_description_en ?? '',
-            type: 'website',
-        },
-    };
+    const description =
+        pickLocalized(product as unknown as Record<string, unknown>, 'description', lang) ||
+        product.seo_description_en ||
+        `${name} — Aircond wholesale & parts from ATORA Malaysia.`;
+    const media = await data.listProductMedia(product.id);
+    const images = media.filter((m) => m.type === 'image' && m.url).map((m) => m.url);
+    return buildPageMetadata({
+        lang,
+        path: `/${lang}/products/${product.slug}`,
+        title: product.seo_title_en && lang === 'en' ? product.seo_title_en : `${name} — ATORA`,
+        description,
+        images: images.slice(0, 4),
+    });
 }
 export default async function ProductDetailPage({ params, }: {
     params: Promise<{
@@ -50,7 +55,8 @@ export default async function ProductDetailPage({ params, }: {
         notFound();
     const s = await getAllSettings();
     const media = await data.listProductMedia(product.id);
-    const brand = product.brand_id ? (await data.listActiveBrands()).find((b) => b.id === product.brand_id) : null;
+    const brands = await data.listActiveBrands();
+    const brand = resolveBrand(product, brands);
     const category = product.category_id
         ? (await data.listActiveCategories()).find((c) => c.id === product.category_id)
         : null;
@@ -71,7 +77,34 @@ export default async function ProductDetailPage({ params, }: {
         : product.stock_status === 'low_stock'
             ? { cls: 'badge-yellow', text: t(lang, 'products.lowStock') }
             : { cls: 'badge-gray', text: t(lang, 'products.outOfStock') };
+    const pagePath = `/${lang}/products/${product.slug}`;
+    const breadcrumbNode = breadcrumbSchema(pagePath, [
+        { name: t(lang, 'nav.home'), url: `/${lang}` },
+        { name: t(lang, isAircon ? 'nav.products' : 'nav.parts'), url: `/${lang}${isAircon ? '/products' : '/parts'}` },
+        { name, url: pagePath },
+    ]);
+    const productNode = productSchema({ product, brand, category, media, settings: s, lang, path: pagePath });
+    const pageNode = webPageSchema({
+        lang,
+        path: pagePath,
+        title: name,
+        description: desc || product.seo_description_en || '',
+        breadcrumbId: `${absoluteUrl(pagePath)}#breadcrumb`,
+    });
+    // Internal linking: same-brand items first, then same-category items.
+    const allProducts = await data.listActiveProducts();
+    const related = allProducts
+        .filter((p) => p.id !== product.id)
+        .filter((p) => (brand && resolveBrand(p, brands)?.id === brand.id) || (category && p.category_id === category.id))
+        .slice(0, 4);
+    const relatedMedia = new Map<number, Awaited<ReturnType<typeof data.listProductMedia>>>();
+    for (const rp of related) {
+        relatedMedia.set(rp.id, await data.listProductMedia(rp.id));
+    }
     return (<div className="container-fluid py-8">
+      <JsonLd data={breadcrumbNode}/>
+      <JsonLd data={productNode}/>
+      <JsonLd data={pageNode}/>
       {/* Breadcrumbs */}
       <nav className="text-sm text-gray-500 mb-4">
         <Link href={`/${lang}`} className="hover:text-brand-700">{t(lang, 'nav.home')}</Link>
@@ -152,5 +185,13 @@ export default async function ProductDetailPage({ params, }: {
           <a href={`tel:${s.hq_phone.replace(/\s/g, '')}`} className="btn-primary">📞 {s.hq_phone}</a>
         </div>
       </div>
+
+      {/* Internal linking — related catalogue items */}
+      {related.length > 0 && (<section className="mt-10">
+          <h2 className="heading-2 mb-4">{t(lang, 'products.related')}</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {related.map((rp) => (<ProductCard key={rp.id} product={rp} brand={resolveBrand(rp, brands)} media={relatedMedia.get(rp.id)} whatsappNumber={s.whatsapp_number} lang={lang}/>))}
+          </div>
+        </section>)}
     </div>);
 }

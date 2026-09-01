@@ -26,7 +26,7 @@ export const DEFAULT_SETTINGS: Record<string, string> = {
   seo_default_title_bm: 'ATORA — Pembekal Borong & Alat Ganti Aircond Malaysia',
   seo_default_title_zh: 'ATORA — 马来西亚冷气批发与零件供应商',
   seo_default_description_en:
-    'Multi-brand aircond wholesale, parts & accessories for installers, contractors, businesses and projects across Malaysia. Daikin, Midea, Panasonic, AUX, Acson, Haier, Hisense, Mitsubishi Electric, Topaire.',
+    'Multi-brand aircond wholesale, parts & accessories for installers, contractors, businesses and projects across Malaysia. Daikin, Midea, Panasonic, AUX, Acson, Haier, Hisense, TCL.',
   seo_default_description_bm:
     'Pembekal alat ganti dan aksesori penyaman udara pelbagai jenama untuk pemasang, kontraktor, perniagaan dan projek di seluruh Malaysia.',
   seo_default_description_zh:

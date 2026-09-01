@@ -4,9 +4,11 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { LOCALES, Locale, t, langAlternates } from '@/lib/i18n';
+import { LOCALES, Locale, t, pickLocalized } from '@/lib/i18n';
 import { data } from '@/lib/data';
-import { pickLocalized } from '@/lib/i18n';
+import { buildPageMetadata } from '@/lib/seo';
+import { breadcrumbSchema, partnerOrganizationSchema, webPageSchema } from '@/lib/schema';
+import JsonLd from '@/components/JsonLd';
 import { buildDirectionsUrl } from '@/lib/formatters';
 export async function generateMetadata({ params, }: {
     params: Promise<{
@@ -19,14 +21,15 @@ export async function generateMetadata({ params, }: {
     const lang: Locale = (LOCALES as readonly string[]).includes(rawLang) ? (rawLang as Locale) : 'en';
     const partner = await data.getPartnerBySlug(slug);
     if (!partner)
-        return { title: 'Partner — ATORA' };
+        return { title: 'Partner — ATORA', robots: { index: false, follow: false } };
     const name = partner.company_name_en;
     const desc = pickLocalized(partner as unknown as Record<string, unknown>, 'description', lang) || partner.description_en;
-    return {
+    return buildPageMetadata({
+        lang,
+        path: `/${lang}/technical-partners/${partner.slug}`,
         title: `${name} — ATORA Partners`,
         description: desc ?? `${name} — Technical partner of ATORA.`,
-        alternates: langAlternates(`/${lang}/technical-partners/${partner.slug}`),
-    };
+    });
 }
 export default async function PartnerDetailPage({ params, }: {
     params: Promise<{
@@ -49,7 +52,19 @@ export default async function PartnerDetailPage({ params, }: {
         latitude: null,
         longitude: null,
     });
+    const jsonLd = [
+        breadcrumbSchema(`/${lang}/technical-partners`, [
+            { name: t(lang, 'nav.home'), url: `/${lang}` },
+            { name: t(lang, 'nav.partners'), url: `/${lang}/technical-partners` },
+            { name, url: `/${lang}/technical-partners/${partner.slug}` },
+        ]),
+        // Privacy-aware: only emits contact details the partner chose to show.
+        partnerOrganizationSchema(partner),
+        webPageSchema({ lang, path: `/${lang}/technical-partners/${partner.slug}`, title: `${name} — ATORA Partners`, description: desc || undefined }),
+    ];
     return (<div className="container-fluid py-8">
+      <JsonLd id="partner-page" data={jsonLd} />
+
       <nav className="text-sm text-gray-500 mb-4">
         <Link href={`/${lang}`} className="hover:text-brand-700">{t(lang, 'nav.home')}</Link>
         <span className="mx-2">/</span>

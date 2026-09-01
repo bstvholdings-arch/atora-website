@@ -2,8 +2,11 @@
  * /technical-partners — search & filter partner directory.
  */
 import type { Metadata } from 'next';
-import { LOCALES, Locale, t, langAlternates } from '@/lib/i18n';
+import { LOCALES, Locale, t } from '@/lib/i18n';
 import { data } from '@/lib/data';
+import { buildPageMetadata } from '@/lib/seo';
+import { breadcrumbSchema, itemListSchema, webPageSchema } from '@/lib/schema';
+import JsonLd from '@/components/JsonLd';
 import PartnerCard from '@/components/PartnerCard';
 export async function generateMetadata({ params }: {
     params: Promise<{
@@ -13,11 +16,12 @@ export async function generateMetadata({ params }: {
     let _params = await params;
     const { lang: rawLang } = _params;
     const lang: Locale = (LOCALES as readonly string[]).includes(rawLang) ? (rawLang as Locale) : 'en';
-    return {
+    return buildPageMetadata({
+        lang,
+        path: `/${lang}/technical-partners`,
         title: `${t(lang, 'partners.pageTitle')} — ATORA`,
         description: t(lang, 'partners.pageSub'),
-        alternates: langAlternates(`/${lang}/technical-partners`),
-    };
+    });
 }
 const SERVICE_TYPES = [
     'installation', 'repair', 'maintenance', 'electrical',
@@ -41,7 +45,24 @@ export default async function PartnersListPage({ params, searchParams, }: {
         q: sp.q,
         serviceType: sp.service,
     });
+    const jsonLd = [
+        breadcrumbSchema(`/${lang}/technical-partners`, [
+            { name: t(lang, 'nav.home'), url: `/${lang}` },
+            { name: t(lang, 'nav.partners'), url: `/${lang}/technical-partners` },
+        ]),
+        itemListSchema({
+            path: `/${lang}/technical-partners`,
+            name: `${t(lang, 'partners.pageTitle')} — ATORA`,
+            items: partners.map((p) => ({
+                name: p.company_name_en,
+                url: `/${lang}/technical-partners/${p.slug}`,
+            })),
+        }),
+        webPageSchema({ lang, path: `/${lang}/technical-partners`, title: `${t(lang, 'partners.pageTitle')} — ATORA`, description: t(lang, 'partners.pageSub') }),
+    ];
     return (<div className="container-fluid py-8">
+      <JsonLd id="partners-page" data={jsonLd} />
+
       <header className="mb-8">
         <h1 className="heading-1 mb-2">{t(lang, 'partners.pageTitle')}</h1>
         <p className="text-gray-600">{t(lang, 'partners.pageSub')}</p>

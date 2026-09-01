@@ -3,9 +3,12 @@
  */
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { LOCALES, Locale, t, langAlternates, pickLocalized } from '@/lib/i18n';
+import { LOCALES, Locale, t, pickLocalized } from '@/lib/i18n';
 import { getAllSettings } from '@/lib/settings';
 import { data } from '@/lib/data';
+import { buildPageMetadata } from '@/lib/seo';
+import { breadcrumbSchema, webPageSchema } from '@/lib/schema';
+import JsonLd from '@/components/JsonLd';
 export async function generateMetadata({ params }: {
     params: Promise<{
         lang: string;
@@ -14,11 +17,12 @@ export async function generateMetadata({ params }: {
     let _params = await params;
     const { lang: rawLang } = _params;
     const lang: Locale = (LOCALES as readonly string[]).includes(rawLang) ? (rawLang as Locale) : 'en';
-    return {
+    return buildPageMetadata({
+        lang,
+        path: `/${lang}/about`,
         title: `${t(lang, 'about.pageTitle')} — ATORA`,
         description: t(lang, 'about.pageSub'),
-        alternates: langAlternates(`/${lang}/about`),
-    };
+    });
 }
 export default async function AboutPage({ params }: {
     params: Promise<{
@@ -32,7 +36,16 @@ export default async function AboutPage({ params }: {
     const story = await data.getAboutStory();
     const photos = await data.listAboutPhotos();
     const served = ['installers', 'technicians', 'contractors', 'retailers', 'commercial', 'project', 'bulk'];
+    const jsonLd = [
+        breadcrumbSchema(`/${lang}/about`, [
+            { name: t(lang, 'nav.home'), url: `/${lang}` },
+            { name: t(lang, 'nav.about'), url: `/${lang}/about` },
+        ]),
+        webPageSchema({ lang, path: `/${lang}/about`, title: `${t(lang, 'about.pageTitle')} — ATORA`, description: t(lang, 'about.pageSub') }),
+    ];
     return (<div>
+      <JsonLd id="about-page" data={jsonLd} />
+
       <section className="bg-gradient-to-br from-brand-900 via-brand-700 to-brand-500 text-white">
         <div className="container-fluid py-14">
           <h1 className="heading-1 text-white mb-3">{t(lang, 'about.pageTitle')}</h1>

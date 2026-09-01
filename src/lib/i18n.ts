@@ -83,14 +83,31 @@ export function pickLocalized<T extends Record<string, unknown>>(
 }
 
 /**
+ * BCP-47 language tags — required for valid `hreflang`.
+ * "bm" is our internal code; the correct public tag for Bahasa Malaysia in
+ * Malaysia is "ms-MY". Search engines ignore/penalise invalid tags such as "bm".
+ */
+export const HREFLANG_TAGS: Record<Locale, string> = {
+  en: 'en-MY',
+  bm: 'ms-MY',
+  zh: 'zh-MY',
+};
+
+/**
  * Build SEO alternates (canonical + hreflang) for a locale-aware page.
  * `canonicalPath` is the full path including the locale, e.g. "/en/products".
+ *
+ * Emits valid BCP-47 region tags (en-MY / ms-MY / zh-MY) plus `x-default`
+ * so Google / Bing / AI crawlers can resolve the language versions correctly.
  */
-export function langAlternates(canonicalPath: string) {
+export function langAlternates(canonicalPath: string): {
+  canonical: string;
+  languages: Record<string, string>;
+} {
   const rest = canonicalPath.replace(/^\/[^/]+/, '');
-  const make = (l: Locale) => `/${l}${rest}`;
-  return {
-    canonical: canonicalPath,
-    languages: { en: make('en'), bm: make('bm'), zh: make('zh') } as Record<Locale, string>,
-  };
+  const languages: Record<string, string> = {};
+  for (const l of LOCALES) languages[HREFLANG_TAGS[l]] = `/${l}${rest}`;
+  // x-default points at the English (canonical) version.
+  languages['x-default'] = `/en${rest}`;
+  return { canonical: canonicalPath, languages };
 }

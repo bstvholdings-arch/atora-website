@@ -3,27 +3,50 @@
  */
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { LOCALES, Locale, t, langAlternates } from '@/lib/i18n';
+import { LOCALES, Locale, t } from '@/lib/i18n';
+import { getAllSettings } from '@/lib/settings';
+import { buildPageMetadata } from '@/lib/seo';
+import { breadcrumbSchema, serviceSchema, webPageSchema } from '@/lib/schema';
+import JsonLd from '@/components/JsonLd';
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }): Promise<Metadata> {
   const { lang: rawLang } = await params;
   const lang: Locale = (LOCALES as readonly string[]).includes(rawLang) ? (rawLang as Locale) : 'en';
-  return {
+  return buildPageMetadata({
+    lang,
+    path: `/${lang}/project-supply`,
     title: `${t(lang, 'projectSupply.pageTitle')} — ATORA`,
     description: t(lang, 'projectSupply.pageSub'),
-    alternates: langAlternates(`/${lang}/project-supply`),
-  };
+  });
 }
 
 export default async function ProjectSupplyPage({ params }: { params: Promise<{ lang: string }> }) {
   const { lang: rawLang } = await params;
   const lang: Locale = (LOCALES as readonly string[]).includes(rawLang) ? (rawLang as Locale) : 'en';
-
+  const s = await getAllSettings();
   const served = ['contractors','developers','businesses','offices','shops','restaurants','buildings','projects','bulk'];
   const offered = ['sourcing','brands','quotation','equipment','parts','materials','supply'];
 
+  const jsonLd = [
+    breadcrumbSchema(`/${lang}/project-supply`, [
+      { name: t(lang, 'nav.home'), url: `/${lang}` },
+      { name: t(lang, 'nav.projectSupply'), url: `/${lang}/project-supply` },
+    ]),
+    serviceSchema({
+      settings: s,
+      lang,
+      path: `/${lang}/project-supply`,
+      name: `${t(lang, 'projectSupply.pageTitle')} — ${s.company_name_en}`,
+      description: `${s.company_name_en} provides bulk and project aircond supply, sourcing, quotation and parts across Malaysia for contractors, developers and businesses.`,
+      serviceType: 'Air conditioner project and bulk supply',
+    }),
+    webPageSchema({ lang, path: `/${lang}/project-supply`, title: `${t(lang, 'projectSupply.pageTitle')} — ATORA`, description: t(lang, 'projectSupply.pageSub') }),
+  ];
+
   return (
     <div>
+      <JsonLd id="project-supply-page" data={jsonLd} />
+
       {/* Hero */}
       <section className="bg-gradient-to-br from-brand-900 via-brand-700 to-brand-500 text-white">
         <div className="container-fluid py-14">

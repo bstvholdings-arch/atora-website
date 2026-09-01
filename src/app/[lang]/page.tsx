@@ -20,10 +20,13 @@
  */
 import Link from 'next/link';
 import type { Metadata } from 'next';
-import { LOCALES, Locale, t, langAlternates } from '@/lib/i18n';
+import { LOCALES, Locale, t } from '@/lib/i18n';
 import { data, type ProductMedia } from '@/lib/data';
 import { pickLocalized } from '@/lib/i18n';
 import { getAllSettings } from '@/lib/settings';
+import { buildPageMetadata } from '@/lib/seo';
+import { faqSchema, itemListSchema, webPageSchema } from '@/lib/schema';
+import JsonLd from '@/components/JsonLd';
 import QuickEnquiryForm from '@/components/QuickEnquiryForm';
 import BrandCard from '@/components/BrandCard';
 import ProductCard from '@/components/ProductCard';
@@ -40,12 +43,7 @@ export async function generateMetadata({ params }: {
     const s = await getAllSettings();
     const title = lang === 'zh' ? s.seo_default_title_zh : lang === 'bm' ? s.seo_default_title_bm : s.seo_default_title_en;
     const description = lang === 'zh' ? s.seo_default_description_zh : lang === 'bm' ? s.seo_default_description_bm : s.seo_default_description_en;
-    return {
-        title,
-        description,
-        alternates: langAlternates(`/${lang}`),
-        openGraph: { title, description, type: 'website' },
-    };
+    return buildPageMetadata({ lang, path: `/${lang}`, title, description });
 }
 export default async function HomePage({ params }: {
     params: Promise<{
@@ -68,10 +66,31 @@ export default async function HomePage({ params }: {
     for (const p of featuredProducts) {
         mediaMap.set(p.id, await data.listProductMedia(p.id));
     }
-    // Group categories by parent for organised display
-    const topCategories = categories.filter((c) => !c.parent_id);
-    const childCategories = categories.filter((c) => c.parent_id);
+    // Group categories by parent for organised display (slug fallback aware).
+    const topCategories = await data.listCategoryGroups();
+    const childCategories = (
+      await Promise.all(topCategories.map((g) => data.listChildCategories(g.id)))
+    ).flat();
+
+    // --- Structured data ---------------------------------------------------
+    const homePath = `/${lang}`;
+    const pageNode = webPageSchema({
+        lang,
+        path: homePath,
+        title: lang === 'zh' ? s.seo_default_title_zh : lang === 'bm' ? s.seo_default_title_bm : s.seo_default_title_en,
+        description: lang === 'zh' ? s.seo_default_description_zh : lang === 'bm' ? s.seo_default_description_bm : s.seo_default_description_en,
+    });
+    const brandListNode = itemListSchema({
+        path: homePath,
+        name: 'Air conditioner brands supplied by ATORA',
+        items: brands.map((b) => ({ name: b.name_en, url: `/${lang}/brands/${b.slug}`, image: b.logo })),
+    });
+    const faqNode = faqs.length ? faqSchema(faqs, lang) : null;
+
     return (<>
+      <JsonLd data={pageNode}/>
+      <JsonLd data={brandListNode}/>
+      {faqNode && <JsonLd data={faqNode}/>}
       {/* Hero */}
       <section className="relative bg-gradient-to-b from-brand-950 via-brand-900 to-brand-800 text-white overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_0%,rgba(255,255,255,0.18),transparent_70%)]"/>
@@ -280,6 +299,20 @@ export default async function HomePage({ params }: {
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3 max-w-4xl mx-auto">
             {['Padang Serai', 'Sungai Petani', 'Kulim', 'Kedah', 'Northern Malaysia', 'All Malaysia'].map((loc) => (<div key={loc} className="card p-3 text-sm font-medium text-brand-700">{loc}</div>))}
           </div>
+
+          {/* Answer-first summary — written for AI answer engines as well as people */}
+          <p className="text-gray-600 max-w-3xl mx-auto mt-8 text-sm leading-relaxed">
+            {lang === 'zh'
+              ? 'ATORA 是一家独立的马来西亚多品牌冷气批发与零件供应商，为全马来西亚的安装商、维修技师、承包商、零售商与企业项目客户提供冷气机、零件、配件及安装材料。我们的实体分店位于吉打州（Padang Serai 总部、Sungai Petani、Kulim），同时服务全马各地客户。'
+              : lang === 'bm'
+                ? 'ATORA ialah pemborong penyaman udara dan pembekal alat ganti pelbagai jenama yang bebas di Malaysia, membekalkan penyaman udara, alat ganti, aksesori dan bahan pemasangan kepada pemasang, juruteknik, kontraktor, peruncit serta projek perniagaan di seluruh Malaysia. Cawangan fizikal kami terletak di Kedah (Ibu Pejabat Padang Serai, Sungai Petani, Kulim), dan kami melayani pelanggan di seluruh negara.'
+                : 'ATORA is an independent, multi-brand air conditioner wholesale and spare parts supplier in Malaysia. We supply air conditioners, spare parts, accessories and installation materials to installers, technicians, contractors, retailers and business projects across Malaysia. Our physical branches are in Kedah — Padang Serai (headquarters), Sungai Petani and Kulim — and we serve customers nationwide.'}
+          </p>
+          <p className="mt-4">
+            <Link href={`/${lang}/aircond-wholesale-malaysia`} className="text-sm font-semibold text-brand-700 underline">
+              {lang === 'zh' ? '了解我们的全国批发供应服务 →' : lang === 'bm' ? 'Ketahui tentang pembekalan borong seluruh negara kami →' : 'Learn more about our nationwide wholesale supply →'}
+            </Link>
+          </p>
         </div>
       </section>
 

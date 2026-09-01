@@ -4,7 +4,7 @@ import type { Metadata } from 'next';
 export const metadata: Metadata = {
   title: 'ATORA — Aircond Wholesale & Parts Supplier Malaysia',
   description:
-    'Multi-brand aircond wholesale, parts & accessories for installers, contractors, businesses and projects across Malaysia. Daikin, Midea, Panasonic, AUX, Acson, Haier, Hisense, Mitsubishi Electric, Topaire.',
+    'Multi-brand aircond wholesale, parts & accessories for installers, contractors, businesses and projects across Malaysia. Daikin, Midea, Panasonic, AUX, Acson, Haier, Hisense, TCL.',
   authors: [{ name: 'ATORA AIR COND & ELECTRICAL SDN. BHD.' }],
   creator: 'ATORA',
   publisher: 'ATORA AIR COND & ELECTRICAL SDN. BHD.',

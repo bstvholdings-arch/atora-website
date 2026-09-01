@@ -3,9 +3,12 @@
  */
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { LOCALES, Locale, t, langAlternates } from '@/lib/i18n';
+import { LOCALES, Locale, t } from '@/lib/i18n';
 import { data, type ProductMedia } from '@/lib/data';
 import { getAllSettings } from '@/lib/settings';
+import { absoluteUrl, buildPageMetadata } from '@/lib/seo';
+import { breadcrumbSchema, itemListSchema, webPageSchema } from '@/lib/schema';
+import JsonLd from '@/components/JsonLd';
 import ProductCard from '@/components/ProductCard';
 export async function generateMetadata({ params }: {
     params: Promise<{
@@ -15,11 +18,12 @@ export async function generateMetadata({ params }: {
     let _params = await params;
     const { lang: rawLang } = _params;
     const lang: Locale = (LOCALES as readonly string[]).includes(rawLang) ? (rawLang as Locale) : 'en';
-    return {
+    return buildPageMetadata({
+        lang,
+        path: `/${lang}/products`,
         title: `${t(lang, 'products.pageTitle')} — ATORA`,
         description: t(lang, 'products.pageSub'),
-        alternates: langAlternates(`/${lang}/products`),
-    };
+    });
 }
 export default async function ProductsListPage({ params, searchParams, }: {
     params: Promise<{
@@ -41,7 +45,7 @@ export default async function ProductsListPage({ params, searchParams, }: {
     const categories = await data.listActiveCategories();
     const groups = await data.listCategoryGroups();
     const airconGroup = groups.find((g) => g.slug === 'air-conditioners');
-    const airconCategories = categories.filter((c) => airconGroup && c.parent_id === airconGroup.id);
+    const airconCategories = airconGroup ? await data.listChildCategories(airconGroup.id) : [];
     const brand = sp.brand ? brands.find((b) => b.slug === sp.brand || String(b.id) === sp.brand) : undefined;
     const category = sp.category ? categories.find((c) => c.slug === sp.category || String(c.id) === sp.category) : undefined;
     const products = await data.searchProducts({
@@ -54,7 +58,31 @@ export default async function ProductsListPage({ params, searchParams, }: {
     for (const p of products) {
         mediaMap.set(p.id, await data.listProductMedia(p.id));
     }
+    const pagePath = `/${lang}/products`;
+    const breadcrumbNode = breadcrumbSchema(pagePath, [
+        { name: t(lang, 'nav.home'), url: `/${lang}` },
+        { name: t(lang, 'products.pageTitle'), url: pagePath },
+    ]);
+    const listNode = itemListSchema({
+        path: pagePath,
+        name: t(lang, 'products.pageTitle'),
+        items: products.map((p) => ({
+            name: p.name_en,
+            url: `/${lang}/products/${p.slug}`,
+            image: mediaMap.get(p.id)?.find((m) => m.type === 'image')?.url ?? null,
+        })),
+    });
+    const pageNode = webPageSchema({
+        lang,
+        path: pagePath,
+        title: `${t(lang, 'products.pageTitle')} — ATORA`,
+        description: t(lang, 'products.pageSub'),
+        breadcrumbId: `${absoluteUrl(pagePath)}#breadcrumb`,
+    });
     return (<div className="container-fluid py-8">
+      <JsonLd data={breadcrumbNode}/>
+      <JsonLd data={listNode}/>
+      <JsonLd data={pageNode}/>
       <header className="mb-8">
         <h1 className="heading-1 mb-2">{t(lang, 'products.pageTitle')}</h1>
         <p className="text-gray-600">{t(lang, 'products.pageSub')}</p>

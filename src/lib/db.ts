@@ -147,6 +147,8 @@ export type Brand = {
   display_order: number;
   featured: number;
   status: number;
+  created_at?: string;
+  updated_at?: string;
 };
 
 export type Category = {
@@ -189,6 +191,8 @@ export type Product = {
   status: number;
   seo_title_en: string | null;
   seo_description_en: string | null;
+  created_at?: string;
+  updated_at?: string;
 };
 
 export type ProductMedia = {
@@ -296,6 +300,8 @@ export type TechnicalPartner = {
   show_email: number;
   show_address: number;
   show_website: number;
+  created_at?: string;
+  updated_at?: string;
 };
 
 export type PriceHistoryEntry = {

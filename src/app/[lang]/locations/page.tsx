@@ -1,9 +1,13 @@
 /**
- * /locations — all branches and HQ.
+ * /locations — all branches and HQ, with LocalBusiness structured data.
  */
 import type { Metadata } from 'next';
-import { LOCALES, Locale, t, langAlternates } from '@/lib/i18n';
+import { LOCALES, Locale, t } from '@/lib/i18n';
 import { data } from '@/lib/data';
+import { getAllSettings } from '@/lib/settings';
+import { buildPageMetadata } from '@/lib/seo';
+import { breadcrumbSchema, localBusinessSchema, serviceSchema, webPageSchema } from '@/lib/schema';
+import JsonLd from '@/components/JsonLd';
 import LocationCard from '@/components/LocationCard';
 export async function generateMetadata({ params }: {
     params: Promise<{
@@ -13,11 +17,12 @@ export async function generateMetadata({ params }: {
     let _params = await params;
     const { lang: rawLang } = _params;
     const lang: Locale = (LOCALES as readonly string[]).includes(rawLang) ? (rawLang as Locale) : 'en';
-    return {
+    return buildPageMetadata({
+        lang,
+        path: `/${lang}/locations`,
         title: `${t(lang, 'locations.pageTitle')} — ATORA`,
         description: t(lang, 'locations.pageSub'),
-        alternates: langAlternates(`/${lang}/locations`),
-    };
+    });
 }
 export default async function LocationsPage({ params }: {
     params: Promise<{
@@ -27,10 +32,31 @@ export default async function LocationsPage({ params }: {
     let _params = await params;
     const { lang: rawLang } = _params;
     const lang: Locale = (LOCALES as readonly string[]).includes(rawLang) ? (rawLang as Locale) : 'en';
+    const s = await getAllSettings();
     const locations = await data.listActiveLocations();
     const hq = locations.find((l) => l.is_hq === 1);
     const branches = locations.filter((l) => l.is_hq !== 1);
+    const jsonLd = [
+        breadcrumbSchema(`/${lang}/locations`, [
+            { name: t(lang, 'nav.home'), url: `/${lang}` },
+            { name: t(lang, 'nav.locations'), url: `/${lang}/locations` },
+        ]),
+        // Each DB location becomes a LocalBusiness node (nationwide service).
+        ...locations.map((loc) => localBusinessSchema(loc, s)),
+        // Nationwide aircond wholesale & parts supply service.
+        serviceSchema({
+            settings: s,
+            lang,
+            path: `/${lang}/locations`,
+            name: `${t(lang, 'serviceNationwide')} — ${s.company_name_en}`,
+            description: `${s.company_name_en} supplies air conditioners, spare parts and accessories to installers, contractors and businesses across Malaysia.`,
+            serviceType: 'Air conditioner wholesale and parts supply',
+        }),
+        webPageSchema({ lang, path: `/${lang}/locations`, title: `${t(lang, 'locations.pageTitle')} — ATORA`, description: t(lang, 'locations.pageSub') }),
+    ];
     return (<div>
+      <JsonLd id="locations-page" data={jsonLd} />
+
       <section className="bg-gradient-to-br from-brand-900 via-brand-700 to-brand-500 text-white">
         <div className="container-fluid py-14">
           <h1 className="heading-1 text-white mb-3">{t(lang, 'locations.pageTitle')}</h1>

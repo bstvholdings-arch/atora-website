@@ -61,6 +61,60 @@ const SQL = {
   allSettings: `SELECT key, value FROM site_settings`,
 };
 
+/**
+ * Resolve a product's brand.
+ *
+ * A number of legacy product rows have `brand_id = NULL` even though the
+ * product name starts with the brand name ("Daikin 2.0HP ..."). Fall back to a
+ * case-insensitive prefix match against the real brand list. This never
+ * invents a brand — it only links a product to a brand that already exists in
+ * the database and is already named in the product title.
+ */
+/**
+ * Effective parent category id.
+ *
+ * A large part of the seeded category rows have `parent_id = NULL` even though
+ * their slug encodes the parent ("air-conditioners-wall-mounted" belongs to
+ * "air-conditioners"). That left `/products` showing only the handful of rows
+ * directly assigned to the group and the homepage rendering every category as a
+ * top-level card.
+ *
+ * An admin-set `parent_id` always wins; the slug-derived parent is only a
+ * fallback for rows where the hierarchy was never populated.
+ */
+export function effectiveParentId(category: Category, all: Category[]): number | null {
+  if (category.parent_id != null) return category.parent_id;
+  const candidates = all.filter(
+    (o) => o.id !== category.id && o.slug && category.slug.startsWith(`${o.slug}-`)
+  );
+  if (candidates.length === 0) return null;
+  // Longest matching prefix wins so "maintenance-products-cleaning-accessories"
+  // maps to "maintenance-products", not to a shorter overlapping slug.
+  candidates.sort((a, b) => b.slug.length - a.slug.length);
+  return candidates[0].id;
+}
+
+/** All direct children of `parentId`, honouring the slug fallback. */
+export function childCategoryIds(parentId: number, all: Category[]): number[] {
+  return all.filter((c) => effectiveParentId(c, all) === parentId).map((c) => c.id);
+}
+
+export function resolveBrand(
+  product: { brand_id?: number | null; name_en?: string | null; slug?: string | null },
+  brands: Brand[]
+): Brand | null {
+  if (product.brand_id) {
+    const byId = brands.find((b) => b.id === product.brand_id);
+    if (byId) return byId;
+  }
+  const hay = (product.name_en || product.slug || '').toLowerCase().trim();
+  if (!hay) return null;
+  const matches = brands
+    .filter((b) => b.name_en && hay.startsWith(b.name_en.toLowerCase()))
+    .sort((a, b) => b.name_en.length - a.name_en.length);
+  return matches[0] ?? null;
+}
+
 export const data = {
   // Brands
   async listActiveBrands(): Promise<Brand[]> {
@@ -81,11 +135,22 @@ export const data = {
     return (await db.prepare(SQL.activeCategories).all()) as Category[];
   },
   async listCategoryGroups(): Promise<Category[]> {
-    return (
-      await db
-        .prepare(`SELECT * FROM categories WHERE parent_id IS NULL AND status = 1 ORDER BY display_order, name_en`)
-        .all()
-    ) as Category[];
+    const all = (await db
+      .prepare(`SELECT * FROM categories WHERE status = 1 ORDER BY display_order, name_en`)
+      .all()) as Category[];
+    // Top level = rows without an effective parent (see effectiveParentId).
+    return all.filter((c) => effectiveParentId(c, all) === null);
+  },
+  /**
+   * Direct children of a group. Falls back to slash/slug-derived hierarchy when
+   * `parent_id` was never populated, so the catalogue never silently empties.
+   */
+  async listChildCategories(groupId: number): Promise<Category[]> {
+    const all = (await db
+      .prepare(`SELECT * FROM categories WHERE status = 1 ORDER BY display_order, name_en`)
+      .all()) as Category[];
+    const ids = new Set(childCategoryIds(groupId, all));
+    return all.filter((c) => ids.has(c.id));
   },
   async getCategoryBySlug(slug: string): Promise<Category | null> {
     return (await db.prepare(SQL.categoryBySlug).get(slug) as Category | undefined) ?? null;
@@ -126,16 +191,23 @@ export const data = {
       where.push('category_id = ?');
       params.push(opts.categoryId);
     }
+    // Expand groups in JS so the slug-derived hierarchy fallback is honoured.
+    const allCategories = opts.groupId || (opts.groupIds && opts.groupIds.length > 0)
+      ? (await db.prepare(`SELECT * FROM categories WHERE status = 1`).all())
+      : [];
     if (opts.groupId) {
-      where.push('(category_id = ? OR category_id IN (SELECT id FROM categories WHERE parent_id = ?))');
-      params.push(opts.groupId, opts.groupId);
+      const ids = [opts.groupId, ...childCategoryIds(opts.groupId, allCategories as Category[])];
+      where.push(`(category_id IN (${ids.map(() => '?').join(',')}))`);
+      params.push(...ids);
     }
     if (opts.groupIds && opts.groupIds.length > 0) {
-      const marks = opts.groupIds.map(() => '?').join(',');
-      where.push(
-        `(category_id IN (${marks}) OR category_id IN (SELECT id FROM categories WHERE parent_id IN (${marks})))`
+      const ids = Array.from(
+        new Set(
+          opts.groupIds.flatMap((g) => [g, ...childCategoryIds(g, allCategories as Category[])])
+        )
       );
-      params.push(...opts.groupIds, ...opts.groupIds);
+      where.push(`(category_id IN (${ids.map(() => '?').join(',')}))`);
+      params.push(...ids);
     }
     const sql = `SELECT * FROM products WHERE ${where.join(' AND ')} ORDER BY featured DESC, name_en LIMIT 200`;
     return (await db.prepare(sql).all(...params)) as Product[];
