@@ -16,6 +16,7 @@
     "@types/node": "20.14.10",
     "@types/pg": "^8.23.1",
     "@types/react": "18.3.5",
+    "@vercel/analytics": "^2.0.1",
     "autoprefixer": "10.4.20",
     "bcryptjs": "2.4.3",
     "better-sqlite3": "11.3.0",
