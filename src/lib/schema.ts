@@ -48,10 +48,17 @@ function localized(row: unknown, field: string, lang: Locale, fallback = ''): st
 export function organizationSchema(s: SiteSettings, opts: {
   locations?: Location[];
   knowsAbout?: string[];
+  /** Extra states to assert as service area (e.g. Northern Malaysia states). */
+  serviceStates?: string[];
 } = {}): Record<string, unknown> {
   const sameAs = [s.facebook, s.instagram].filter((v) => !!v && v.trim()) as string[];
   const states = Array.from(
-    new Set((opts.locations ?? []).map((l) => l.state).filter((v): v is string => !!v && v.trim() !== ''))
+    new Set(
+      [
+        ...(opts.locations ?? []).map((l) => l.state).filter((v): v is string => !!v && v.trim() !== ''),
+        ...(opts.serviceStates ?? []),
+      ].filter((v): v is string => !!v && v.trim() !== '')
+    )
   );
 
   const node: Record<string, unknown> = {

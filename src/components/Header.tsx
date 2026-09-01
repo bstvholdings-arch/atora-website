@@ -26,6 +26,7 @@ export default function Header({ lang, whatsappNumber, companyNameEn, companyNam
     { key: 'partners', href: `/${lang}/technical-partners` },
     { key: 'about', href: `/${lang}/about` },
     { key: 'locations', href: `/${lang}/locations` },
+    { key: 'serviceArea', href: `/${lang}/service-area` },
     { key: 'contact', href: `/${lang}/contact` },
   ];
 

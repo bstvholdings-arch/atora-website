@@ -27,14 +27,14 @@ export const dynamic = 'force-dynamic';
 const HUB_PATH = '/aircond-wholesale-malaysia';
 
 const TITLE_BY_LANG: Record<Locale, string> = {
-    en: 'Aircond Wholesale Malaysia — ATORA Multi-Brand Supplier',
-    bm: 'Pemborong Penyaman Udara Malaysia — ATORA Pembekal Pelbagai Jenama',
-    zh: '马来西亚冷气批发 — ATORA 多品牌供应商',
+    en: 'Northern Malaysia Aircond Wholesale Specialist — ATORA',
+    bm: 'Pakar Borong Aircond Utara Malaysia — ATORA',
+    zh: '北马冷气批发专家 — ATORA',
 };
 const DESC_BY_LANG: Record<Locale, string> = {
-    en: 'ATORA is an independent multi-brand air conditioner wholesale and spare parts supplier serving installers, contractors and businesses across Malaysia. Brands, parts, bulk & project supply.',
-    bm: 'ATORA ialah pembekal borong penyaman udara dan alat ganti pelbagai jenama yang bebas, melayani pemasang, kontraktor dan perniagaan di seluruh Malaysia.',
-    zh: 'ATORA 是独立的马来西亚多品牌冷气批发与零件供应商，为全马的安装商、承包商及企业客户提供冷气机、零件、批量与项目供应。',
+    en: 'ATORA is a Kedah-based Northern Malaysia aircond wholesale and spare parts specialist serving installers, contractors and businesses in Padang Serai, Kulim, Sungai Petani, Alor Setar and across Malaysia. Brands, parts, bulk & project supply.',
+    bm: 'ATORA ialah pakar borong penyaman udara dan alat ganti Utara Malaysia berasaskan Kedah, melayani pemasang, kontraktor dan perniagaan di Padang Serai, Kulim, Sungai Petani, Alor Setar serta seluruh Malaysia.',
+    zh: 'ATORA 是位于吉打州的北马冷气批发与零件专家，为 Padang Serai、Kulim、Sungai Petani、Alor Setar 及全马来西亚的安装商、承包商及企业客户提供冷气机、零件、批量与项目供应。',
 };
 
 export async function generateMetadata({ params }: {
@@ -66,9 +66,9 @@ export default async function AircondWholesaleHub({ params }: { params: Promise<
     const partsChildren = partsGroup ? await data.listChildCategories(partsGroup.id) : [];
 
     const answerFirst: Record<Locale, string> = {
-        en: `${s.company_name_en} is an independent, multi-brand air conditioner wholesale and spare parts supplier in Malaysia. We supply air conditioners, spare parts, accessories and installation materials to installers, technicians, contractors, retailers and commercial projects across the whole of Malaysia — not only in Kedah. Our branches are in Padang Serai (HQ), Sungai Petani and Kulim, Kedah, and we deliver and support customers nationwide.`,
-        bm: `${s.company_name_en} ialah pembekal borong penyaman udara dan alat ganti pelbagai jenama yang bebas di Malaysia. Kami membekalkan penyaman udara, alat ganti, aksesori dan bahan pemasangan kepada pemasang, juruteknik, kontraktor, peruncit serta projek komersial di seluruh Malaysia — bukan sahaja di Kedah. Cawangan kami terletak di Padang Serai (Ibu Pejabat), Sungai Petani dan Kulim, Kedah, dan kami menghantar serta menyokong pelanggan di seluruh negara.`,
-        zh: `${s.company_name_en} 是独立的马来西亚多品牌冷气批发与零件供应商。我们为全马来西亚（不仅限于吉打州）的安装商、维修技师、承包商、零售商及商业项目客户提供冷气机、零件、配件与安装材料。我们的分店位于吉打州 Padang Serai（总部）、Sungai Petani 与 Kulim，并为全国客户提供配送与支持。`,
+        en: `${s.company_name_en} is a Kedah-based Northern Malaysia aircond specialist and multi-brand wholesale supplier. We supply air conditioners, spare parts, accessories and installation materials to installers, technicians, contractors, retailers and commercial projects across Northern Malaysia — Padang Serai (HQ), Kulim, Sungai Petani, Alor Setar — and we deliver and support customers nationwide across Malaysia.`,
+        bm: `${s.company_name_en} ialah pakar aircond Utara Malaysia berasaskan Kedah dan pembekal borong pelbagai jenama. Kami membekalkan penyaman udara, alat ganti, aksesori dan bahan pemasangan kepada pemasang, juruteknik, kontraktor, peruncit serta projek komersial di Utara Malaysia — Padang Serai (Ibu Pejabat), Kulim, Sungai Petani, Alor Setar — dan kami menghantar serta menyokong pelanggan di seluruh Malaysia.`,
+        zh: `${s.company_name_en} 是位于吉打州的北马专业冷气专门店与多品牌批发供应商。我们为北马（Padang Serai 总部、Kulim、Sungai Petani、Alor Setar）的安装商、维修技师、承包商、零售商及商业项目客户提供冷气机、零件、配件与安装材料，并为全马来西亚客户提供配送与支持。`,
     };
 
     const jsonLd = [
@@ -80,9 +80,9 @@ export default async function AircondWholesaleHub({ params }: { params: Promise<
             settings: s,
             lang,
             path: `/${lang}${HUB_PATH}`,
-            name: `${s.company_name_en} — Aircond Wholesale Malaysia`,
-            description: `${s.company_name_en} supplies air conditioners, spare parts and accessories to businesses across Malaysia.`,
-            serviceType: 'Air conditioner wholesale and spare parts supply',
+            name: `${s.company_name_en} — Northern Malaysia Aircond Wholesale Specialist`,
+            description: `${s.company_name_en} supplies air conditioners, spare parts and accessories to businesses across Northern Malaysia and Malaysia.`,
+            serviceType: 'Northern Malaysia air conditioner wholesale and spare parts supply',
         }),
         itemListSchema({
             path: `/${lang}${HUB_PATH}`,
@@ -114,10 +114,10 @@ export default async function AircondWholesaleHub({ params }: { params: Promise<
             <section className="bg-gradient-to-br from-brand-900 via-brand-700 to-brand-500 text-white">
                 <div className="container-fluid py-14">
                     <span className="inline-flex items-center rounded-full bg-white/10 backdrop-blur px-3 py-1 text-xs font-medium mb-4 ring-1 ring-white/20">
-                        {lang === 'zh' ? '马来西亚冷气批发' : lang === 'bm' ? 'Pemborong Penyaman Udara Malaysia' : 'Aircond Wholesale Malaysia'}
+                        {lang === 'zh' ? '北马专业冷气专门店' : lang === 'bm' ? 'Pakar Aircond Utara Malaysia' : 'Northern Malaysia Aircond Specialist'}
                     </span>
                     <h1 className="heading-1 text-white mb-4 max-w-4xl">
-                        {lang === 'zh' ? '马来西亚多品牌冷气批发与零件供应商' : lang === 'bm' ? 'Pembekal Borong Penyaman Udara & Alat Ganti Pelbagai Jenama Malaysia' : 'Multi-Brand Aircond Wholesale & Parts Supplier in Malaysia'}
+                        {lang === 'zh' ? '北马冷气批发与零件专家' : lang === 'bm' ? 'Pakar Borong & Alat Ganti Aircond Utara Malaysia' : 'Northern Malaysia Aircond Wholesale & Parts Specialist'}
                     </h1>
                     <p className="opacity-95 max-w-3xl text-lg leading-relaxed">{answerFirst[lang]}</p>
 

@@ -62,6 +62,8 @@ export default function Footer({ lang, brands, locations, company }: Props) {
               <li><Link href={`/${lang}/technical-partners`} className="opacity-80 hover:opacity-100">{t(lang, 'nav.partners')}</Link></li>
               <li><Link href={`/${lang}/about`} className="opacity-80 hover:opacity-100">{t(lang, 'nav.about')}</Link></li>
               <li><Link href={`/${lang}/locations`} className="opacity-80 hover:opacity-100">{t(lang, 'nav.locations')}</Link></li>
+              <li><Link href={`/${lang}/service-area`} className="opacity-80 hover:opacity-100">{t(lang, 'nav.serviceArea')}</Link></li>
+              <li><Link href={`/${lang}/aircond-guide`} className="opacity-80 hover:opacity-100">{lang === 'zh' ? '冷气指南' : lang === 'bm' ? 'Panduan Aircond' : 'Aircond Guides'}</Link></li>
               <li><Link href={`/${lang}/contact`} className="opacity-80 hover:opacity-100">{t(lang, 'nav.contact')}</Link></li>
               <li><Link href={`/${lang}/faq`} className="opacity-80 hover:opacity-100">{t(lang, 'nav.faq')}</Link></li>
             </ul>

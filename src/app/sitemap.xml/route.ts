@@ -9,6 +9,8 @@
 import { data } from '@/lib/data';
 import { LOCALES, HREFLANG_TAGS } from '@/lib/i18n';
 import { absoluteUrl } from '@/lib/seo';
+import { SERVICE_AREA_KEYS, serviceAreaUrlSlug } from '@/lib/positioning';
+import { GUIDES } from '@/lib/guides';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -74,6 +76,7 @@ export async function GET() {
     ['/parts', 0.9, 'daily'],
     ['/brands', 0.8, 'weekly'],
     ['/aircond-wholesale-malaysia', 0.8, 'monthly'],
+    ['/service-area', 0.8, 'monthly'],
     ['/project-supply', 0.8, 'monthly'],
     ['/technical-partners', 0.7, 'weekly'],
     ['/about', 0.6, 'monthly'],
@@ -108,6 +111,17 @@ export async function GET() {
   // ---- Technical partners -------------------------------------------
   for (const tp of partners) {
     entries.push({ path: `/technical-partners/${tp.slug}`, priority: 0.5, changefreq: 'monthly' });
+  }
+
+  // ---- Service-area / location entity pages (GEO V2 §6) --------------
+  for (const key of SERVICE_AREA_KEYS) {
+    entries.push({ path: `/locations/${serviceAreaUrlSlug(key)}`, priority: 0.6, changefreq: 'monthly' });
+  }
+
+  // ---- Aircond guide hub + articles (GEO V2 §7) ----------------------
+  entries.push({ path: `/aircond-guide`, priority: 0.6, changefreq: 'monthly' });
+  for (const g of GUIDES) {
+    entries.push({ path: `/aircond-guide/${g.slug}`, priority: 0.5, changefreq: 'monthly' });
   }
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>

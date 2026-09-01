@@ -17,6 +17,7 @@ import { data } from '@/lib/data';
 import { getAllSettings } from '@/lib/settings';
 import { buildPageMetadata } from '@/lib/seo';
 import { organizationSchema, websiteSchema, localBusinessSchema } from '@/lib/schema';
+import { GEO } from '@/lib/positioning';
 
 export async function generateMetadata({ params }: {
     params: Promise<{
@@ -58,6 +59,7 @@ export default async function LangLayout({ children, params, }: {
     const org = organizationSchema(s, {
         locations,
         knowsAbout: categories.map((c) => c.name_en).filter(Boolean),
+        serviceStates: [...GEO.northernStates],
     });
     const website = websiteSchema(s);
     const localBusinesses = locations.map((loc) => localBusinessSchema(loc, s));

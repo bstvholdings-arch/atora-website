@@ -2,6 +2,7 @@
  * /locations — all branches and HQ, with LocalBusiness structured data.
  */
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { LOCALES, Locale, t } from '@/lib/i18n';
 import { data } from '@/lib/data';
 import { getAllSettings } from '@/lib/settings';
@@ -68,6 +69,10 @@ export default async function LocationsPage({ params }: {
         <div className="container-fluid">
           <div className="rounded-lg bg-brand-50 p-4 mb-8 text-center text-sm text-brand-800">
             <span className="font-bold">{t(lang, 'serviceNationwide')}</span>
+            <span className="mx-2 opacity-50">·</span>
+            <Link href={`/${lang}/service-area`} className="underline hover:text-brand-900">
+              {lang === 'zh' ? '北马服务区域' : lang === 'bm' ? 'Kawasan Utara Malaysia' : 'Northern Malaysia Service Area'}
+            </Link>
           </div>
 
           {hq && (<>
