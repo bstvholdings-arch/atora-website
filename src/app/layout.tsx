@@ -1,5 +1,6 @@
 import './globals.css';
 import type { Metadata } from 'next';
+import { Analytics } from '@vercel/analytics/next';
 
 export const metadata: Metadata = {
   title: 'ATORA — Aircond Wholesale & Parts Supplier Malaysia',
@@ -25,6 +26,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="min-h-screen bg-white text-gray-900 antialiased">
         {children}
+        <Analytics />
       </body>
     </html>
   );
