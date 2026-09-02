@@ -13,6 +13,7 @@ import { buildPageMetadata } from '@/lib/seo';
 import { breadcrumbSchema, webPageSchema } from '@/lib/schema';
 import JsonLd from '@/components/JsonLd';
 import { GUIDES, getGuide } from '@/lib/guides';
+import { POSITIONING } from '@/lib/positioning';
 
 export const dynamic = 'force-dynamic';
 
@@ -56,7 +57,7 @@ export default async function GuideArticle({ params }: { params: Promise<{ lang:
             ← {lang === 'zh' ? '全部指南' : lang === 'bm' ? 'Semua panduan' : 'All guides'}
           </Link>
           <span className="inline-flex items-center rounded-full bg-white/10 backdrop-blur px-3 py-1 text-xs font-medium mb-3 ring-1 ring-white/20">
-            {lang === 'zh' ? '北马专业冷气专门店' : lang === 'bm' ? 'Pakar Aircond Utara Malaysia' : 'Northern Malaysia Aircond Specialist'}
+            {POSITIONING.primary[lang]}
           </span>
           <h1 className="heading-1 text-white mb-3 max-w-4xl">{g.title[lang]}</h1>
           <p className="opacity-95 max-w-3xl text-lg leading-relaxed">{g.excerpt[lang]}</p>

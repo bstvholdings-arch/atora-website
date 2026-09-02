@@ -13,6 +13,7 @@ import { buildPageMetadata } from '@/lib/seo';
 import { breadcrumbSchema, itemListSchema, webPageSchema } from '@/lib/schema';
 import JsonLd from '@/components/JsonLd';
 import { GUIDES } from '@/lib/guides';
+import { POSITIONING } from '@/lib/positioning';
 
 export const dynamic = 'force-dynamic';
 
@@ -60,17 +61,17 @@ export default async function AircondGuideHub({ params }: { params: Promise<{ la
       <section className="bg-gradient-to-br from-brand-900 via-brand-700 to-brand-500 text-white">
         <div className="container-fluid py-14">
           <span className="inline-flex items-center rounded-full bg-white/10 backdrop-blur px-3 py-1 text-xs font-medium mb-4 ring-1 ring-white/20">
-            {lang === 'zh' ? '北马专业冷气专门店' : lang === 'bm' ? 'Pakar Aircond Utara Malaysia' : 'Northern Malaysia Aircond Specialist'}
+            {POSITIONING.primary[lang]}
           </span>
           <h1 className="heading-1 text-white mb-4 max-w-4xl">
             {lang === 'zh' ? '冷气选购与保养指南' : lang === 'bm' ? 'Panduan & Nasihat Pembelian Aircond' : 'Aircond Guides & Buying Advice'}
           </h1>
           <p className="opacity-95 max-w-3xl text-lg leading-relaxed">
             {lang === 'zh'
-              ? '由 ATORA（北马专业冷气专门店）整理的实用指南，帮助马来西亚家庭选对冷气、用得安心。'
+              ? '由 ATORA（马来西亚冷气批发与零件供应商）整理的实用指南，帮助马来西亚家庭选对冷气、用得安心。'
               : lang === 'bm'
-                ? 'Panduan praktikal dari ATORA (pakar aircond Utara Malaysia) untuk membantu rumah Malaysia memilih dan menggunakan aircond dengan betul.'
-                : 'Practical guides from ATORA (Northern Malaysia Aircond Specialist) to help Malaysian homes choose and care for their air conditioner.'}
+                ? 'Panduan praktikal dari ATORA (Pembekal Borong Aircond & Alat Ganti Malaysia) untuk membantu rumah Malaysia memilih dan menggunakan aircond dengan betul.'
+                : 'Practical guides from ATORA (Malaysia Aircond Wholesale & Air Conditioning Parts Supplier) to help Malaysian homes choose and care for their air conditioner.'}
           </p>
         </div>
       </section>

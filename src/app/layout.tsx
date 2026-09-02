@@ -3,9 +3,9 @@ import type { Metadata } from 'next';
 import { Analytics } from '@vercel/analytics/next';
 
 export const metadata: Metadata = {
-  title: 'ATORA — Northern Malaysia Aircond Specialist | Wholesale & Parts Supplier',
+  title: 'ATORA — Malaysia Aircond Wholesale & Air Conditioning Parts Supplier',
   description:
-    'ATORA AIR COND & ELECTRICAL SDN. BHD. (东京冷气电器有限公司) is a Kedah-based Northern Malaysia aircond specialist and Midea Pro Shop. We supply air conditioners, wholesale solutions and spare parts — Midea, Daikin, Panasonic, AUX, Acson, Haier, Hisense, TCL and more — serving Padang Serai, Kulim, Sungai Petani, Alor Setar and customers across Malaysia.',
+    'ATORA AIR COND & ELECTRICAL SDN. BHD. (东京冷气电器有限公司) is a Malaysia-based air conditioning wholesaler and air conditioning parts supplier, headquartered in Kedah (Northern Malaysia), with Nationwide Malaysia Delivery — serving installers, retailers and customers across Malaysia.',
   authors: [{ name: 'ATORA AIR COND & ELECTRICAL SDN. BHD.' }],
   creator: 'ATORA',
   publisher: 'ATORA AIR COND & ELECTRICAL SDN. BHD.',

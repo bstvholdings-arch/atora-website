@@ -29,7 +29,7 @@ export async function GET() {
   lines.push('');
   lines.push(`> ${s.seo_default_description_en || s.tagline_en}`);
   lines.push('');
-  lines.push('ATORA AIR COND & ELECTRICAL SDN. BHD. (东京冷气电器有限公司) is a Northern Malaysia aircond specialist and an independent, multi-brand air conditioner (aircond) wholesale and spare parts supplier based in Kedah, Malaysia. Its primary market is Northern Malaysia (Kedah, Penang, Perlis, Northern Perak), and it serves customers nationwide across Malaysia. It serves installers, technicians, contractors, retailers, businesses and project buyers. Sales enquiries are handled by phone, WhatsApp and the website contact form.');
+  lines.push('ATORA AIR COND & ELECTRICAL SDN. BHD. (东京冷气电器有限公司) is a Malaysia-based air conditioning wholesaler and air conditioning parts supplier, headquartered in Kedah (Northern Malaysia). It is an independent, multi-brand supplier and serves customers nationwide across Malaysia with Nationwide Malaysia Delivery. It serves installers, technicians, contractors, retailers, businesses and project buyers. Sales enquiries are handled by phone, WhatsApp and the website contact form.');
   lines.push('');
 
   lines.push('## Company facts');
@@ -58,13 +58,13 @@ export async function GET() {
   lines.push('');
 
   lines.push('## Service coverage');
-  lines.push('- Primary market: Northern Malaysia (Kedah, Penang, Perlis, Northern Perak).');
-  lines.push('- Serves customers nationwide across Malaysia (Northern Malaysia is the core market, not the limit of service).');
+  lines.push('- Headquarters & local market: Kedah, Northern Malaysia (Padang Serai HQ, with branches in Sungai Petani and Kulim).');
+  lines.push('- Nationwide Malaysia Delivery: ATORA delivers and supports customers across all of Malaysia.');
   for (const loc of locations) {
     const parts = [loc.city, loc.state].filter(Boolean).join(', ');
     lines.push(`- ${loc.name_en}${parts ? ` (${parts})` : ''}${loc.is_hq === 1 ? ' — headquarters' : ''}`);
   }
-  lines.push(`- Northern Malaysia service area hub: ${L('/en/service-area')}`);
+  lines.push(`- Malaysia service area hub: ${L('/en/service-area')}`);
   lines.push('');
 
   if (products.length) {
@@ -101,7 +101,7 @@ export async function GET() {
   lines.push(`- Brands: ${L('/en/brands')}`);
   lines.push(`- Project & bulk supply: ${L('/en/project-supply')}`);
   lines.push(`- Wholesale aircond supplier in Malaysia: ${L('/en/aircond-wholesale-malaysia')}`);
-  lines.push(`- Northern Malaysia service area: ${L('/en/service-area')}`);
+  lines.push(`- Malaysia service area: ${L('/en/service-area')}`);
   lines.push(`- Locations: ${L('/en/locations')}`);
   lines.push(`- Technical partners: ${L('/en/technical-partners')}`);
   lines.push(`- About ATORA: ${L('/en/about')}`);

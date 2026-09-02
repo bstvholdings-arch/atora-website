@@ -1,5 +1,5 @@
 /**
- * /service-area — Northern Malaysia Aircond Specialist (GEO V2 §6).
+ * /service-area — Malaysia Aircond Wholesale & Parts Supplier (GEO V3 §6).
  *
  * Entity-definition page for AI answer engines. Explicitly states ATORA's
  * PRIMARY positioning (Northern Malaysia specialist, Kedah-based) while keeping
@@ -26,15 +26,15 @@ export const dynamic = 'force-dynamic';
 const HUB_PATH = '/service-area';
 
 const TITLE_BY_LANG: Record<Locale, string> = {
-  en: 'Northern Malaysia Aircond Specialist | ATORA',
-  bm: 'Pakar Aircond Utara Malaysia | ATORA',
-  zh: '北马专业冷气专门店 | ATORA',
+  en: 'Malaysia Aircond Wholesale & Parts Supplier | ATORA',
+  bm: 'Pembekal Borong Aircond & Alat Ganti Malaysia | ATORA',
+  zh: '马来西亚冷气批发与零件供应商 | ATORA',
 };
 
 const DESC_BY_LANG: Record<Locale, string> = {
-  en: 'ATORA AIR COND & ELECTRICAL SDN. BHD. (东京冷气电器有限公司) is a Kedah-based Northern Malaysia aircond specialist and Midea Pro Shop, supplying air conditioners, spare parts and accessories across Northern Malaysia — Padang Serai, Kulim, Sungai Petani, Alor Setar, Penang — and nationwide.',
-  bm: 'ATORA AIR COND & ELECTRICAL SDN. BHD. (东京冷气电器有限公司) ialah pakar aircond Utara Malaysia berasaskan Kedah dan Midea Pro Shop, membekalkan penyaman udara, alat ganti dan aksesori di seluruh Utara Malaysia — Padang Serai, Kulim, Sungai Petani, Alor Setar, Pulau Pinang — serta seluruh Malaysia.',
-  zh: 'ATORA AIR COND & ELECTRICAL SDN. BHD.（东京冷气电器有限公司）是位于吉打州的北马专业冷气专门店及 Midea Pro Shop，在北马（Padang Serai、Kulim、Sungai Petani、Alor Setar、槟城）乃至全马来西亚供应冷气机、零件与配件。',
+  en: 'ATORA AIR COND & ELECTRICAL SDN. BHD. (东京冷气电器有限公司) is a Malaysia-based air conditioning wholesaler and air conditioning parts supplier, headquartered in Kedah (Northern Malaysia). We supply air conditioners, spare parts and accessories with Nationwide Malaysia Delivery — across Padang Serai, Kulim, Sungai Petani, Alor Setar, Penang and all of Malaysia.',
+  bm: 'ATORA AIR COND & ELECTRICAL SDN. BHD. (东京冷气电器有限公司) ialah pembekal borong penyaman udara dan alat ganti penyaman udara berasaskan Malaysia, beribu pejabat di Kedah (Utara Malaysia). Kami membekalkan penyaman udara, alat ganti dan aksesori dengan Penghantaran Seluruh Malaysia — ke Padang Serai, Kulim, Sungai Petani, Alor Setar, Pulau Pinang dan seluruh Malaysia.',
+  zh: 'ATORA AIR COND & ELECTRICAL SDN. BHD.（东京冷气电器有限公司）是总部位于马来西亚（北马吉打州）的冷气批发与空调零件供应商。我们通过马来西亚全国配送供应冷气机、零件与配件 —— 覆盖 Padang Serai、Kulim、Sungai Petani、Alor Setar、槟城及全马来西亚。',
 };
 
 export async function generateMetadata({ params }: {
@@ -58,7 +58,7 @@ export default async function ServiceAreaPage({ params }: { params: Promise<{ la
   const locations = await data.listActiveLocations();
   const faqs = (await data.listActiveFaqs()).slice(0, 6);
 
-  // Primary-market service areas (Northern Malaysia + the 8 entity pages).
+  // Local (Northern Malaysia) + nationwide entity pages.
   const northernAreas = SERVICE_AREA_KEYS
     .map((key) => ({ key, slug: serviceAreaUrlSlug(key), cfg: SERVICE_AREAS[key] }))
     .filter((a) => a.cfg.region[lang] === 'Northern Malaysia' || a.cfg.region[lang] === 'Utara Malaysia' || a.cfg.region[lang] === '北马');
@@ -68,27 +68,27 @@ export default async function ServiceAreaPage({ params }: { params: Promise<{ la
     .filter((a) => !(a.cfg.region[lang] === 'Northern Malaysia' || a.cfg.region[lang] === 'Utara Malaysia' || a.cfg.region[lang] === '北马'));
 
   const answerFirst: Record<Locale, string> = {
-    en: `${s.company_name_en} (东京冷气电器有限公司) is a Northern Malaysia aircond specialist based in Kedah. Our primary market is Northern Malaysia — Padang Serai (HQ), Kulim, Sungai Petani, Alor Setar, Penang, Perlis and Northern Perak — where we supply air conditioners, spare parts, accessories and installation materials to installers, contractors, retailers and businesses. We also serve wholesale, retail and spare-parts customers nationwide across Malaysia. ATORA is an independent Midea Pro Shop and multi-brand supplier, not an authorised distributor of any single brand.`,
-    bm: `${s.company_name_en} (东京冷气电器有限公司) ialah pakar aircond Utara Malaysia berasaskan Kedah. Pasaran utama kami ialah Utara Malaysia — Padang Serai (Ibu Pejabat), Kulim, Sungai Petani, Alor Setar, Pulau Pinang, Perlis dan Perak Utara — di mana kami membekalkan penyaman udara, alat ganti, aksesori dan bahan pemasangan kepada pemasang, kontraktor, peruncit dan perniagaan. Kami juga melayani pelanggan borong, runcit dan alat ganti di seluruh Malaysia. ATORA ialah Midea Pro Shop dan pembekal pelbagai jenama yang bebas, bukan pengedar sah mana-mana jenama.`,
-    zh: `${s.company_name_en}（东京冷气电器有限公司）是位于吉打州的北马专业冷气专门店。我们的核心市场是北马 —— Padang Serai（总部）、Kulim、Sungai Petani、Alor Setar、槟城、玻璃市及霹雳北部 —— 为安装商、承包商、零售商及企业提供冷气机、零件、配件与安装材料。同时，我们也服务全马来西亚的批发、零售与零件客户。ATORA 是一家独立的 Midea Pro Shop 与多品牌供应商，并非任何单一品牌的授权经销商。`,
+    en: `${s.company_name_en} (东京冷气电器有限公司) is a Malaysia air conditioning wholesaler and air conditioning parts supplier, headquartered in Kedah (Northern Malaysia). We provide wholesale, retail and spare-parts supply with Nationwide Malaysia Delivery — serving Padang Serai (HQ), Kulim, Sungai Petani, Alor Setar, Penang and customers across all of Malaysia. We supply air conditioners, spare parts, accessories and installation materials to installers, contractors, retailers and businesses. ATORA is an independent Midea Pro Shop and multi-brand supplier, not an authorised distributor of any single brand.`,
+    bm: `${s.company_name_en} (东京冷气电器有限公司) ialah pembekal borong penyaman udara dan alat ganti penyaman udara Malaysia, beribu pejabat di Kedah (Utara Malaysia). Kami menyediakan bekalan borong, runcit dan alat ganti dengan Penghantaran Seluruh Malaysia — melayani Padang Serai (Ibu Pejabat), Kulim, Sungai Petani, Alor Setar, Pulau Pinang dan pelanggan di seluruh Malaysia. Kami membekalkan penyaman udara, alat ganti, aksesori dan bahan pemasangan kepada pemasang, kontraktor, peruncit dan perniagaan. ATORA ialah Midea Pro Shop dan pembekal pelbagai jenama yang bebas, bukan pengedar sah mana-mana jenama.`,
+    zh: `${s.company_name_en}（东京冷气电器有限公司）是马来西亚冷气批发与空调零件供应商，总部位于吉打州（北马）。我们通过马来西亚全国配送提供批发、零售与零件供应 —— 服务 Padang Serai（总部）、Kulim、Sungai Petani、Alor Setar、槟城及全马来西亚客户，并为安装商、承包商、零售商及企业提供冷气机、零件、配件与安装材料。ATORA 是一家独立的 Midea Pro Shop 与多品牌供应商，并非任何单一品牌的授权经销商。`,
   };
 
   const jsonLd = [
     breadcrumbSchema(`/${lang}${HUB_PATH}`, [
       { name: t(lang, 'nav.home'), url: `/${lang}` },
-      { name: lang === 'zh' ? '北马服务区域' : lang === 'bm' ? 'Kawasan Perkhidmatan Utara Malaysia' : 'Northern Malaysia Service Area', url: `/${lang}${HUB_PATH}` },
+      { name: lang === 'zh' ? '马来西亚服务区域' : lang === 'bm' ? 'Kawasan Perkhidmatan Malaysia' : 'Malaysia Service Area', url: `/${lang}${HUB_PATH}` },
     ]),
     serviceSchema({
       settings: s,
       lang,
       path: `/${lang}${HUB_PATH}`,
-      name: `${s.company_name_en} — Northern Malaysia Aircond Specialist`,
-      description: `ATORA is a Kedah-based Northern Malaysia aircond specialist supplying air conditioners, spare parts and accessories across Northern Malaysia and nationwide Malaysia.`,
-      serviceType: 'Northern Malaysia aircond specialist — wholesale, retail and spare parts supply',
+      name: `${s.company_name_en} — Malaysia Aircond Wholesale & Air Conditioning Parts Supplier`,
+      description: `ATORA is a Malaysia air conditioning wholesaler and air conditioning parts supplier, headquartered in Kedah (Northern Malaysia), providing wholesale, retail and spare-parts supply with Nationwide Malaysia Delivery.`,
+      serviceType: 'Malaysia air conditioning wholesaler & parts supplier — wholesale, retail and spare parts supply',
     }),
     itemListSchema({
       path: `/${lang}${HUB_PATH}`,
-      name: 'Northern Malaysia service areas covered by ATORA',
+      name: 'Malaysia service areas covered by ATORA',
       items: SERVICE_AREA_KEYS.map((key) => ({
         name: SERVICE_AREAS[key].name[lang],
         url: `/${lang}/locations/${serviceAreaUrlSlug(key)}`,
@@ -109,7 +109,7 @@ export default async function ServiceAreaPage({ params }: { params: Promise<{ la
             {POSITIONING.primary[lang]}
           </span>
           <h1 className="heading-1 text-white mb-4 max-w-4xl">
-            {lang === 'zh' ? '北马专业冷气专门店' : lang === 'bm' ? 'Pakar Aircond Utara Malaysia' : 'Northern Malaysia Aircond Specialist'}
+            {POSITIONING.primary[lang]}
           </h1>
           <p className="opacity-95 max-w-3xl text-lg leading-relaxed">{answerFirst[lang]}</p>
           <div className="mt-8 flex flex-wrap gap-3">

@@ -49,7 +49,7 @@ export async function seedDatabase(db) {
     ['seo_default_title_en', 'ATORA — Aircond Wholesale & Parts Supplier Malaysia'],
     ['seo_default_title_bm', 'ATORA — Pembekal Borong & Alat Ganti Aircond Malaysia'],
     ['seo_default_title_zh', 'ATORA — 马来西亚冷气批发与零件供应商'],
-    ['seo_default_description_en', 'Multi-brand aircond wholesale, parts & accessories for installers, contractors, businesses and projects across Malaysia. Daikin, Midea, Panasonic, AUX, Acson, Haier, Hisense, Mitsubishi Electric, Topaire.'],
+    ['seo_default_description_en', 'Multi-brand aircond wholesale, parts & accessories for installers, contractors, businesses and projects across Malaysia. Daikin, Midea, Panasonic, AUX, Acson, Haier, Hisense, Topaire.'],
     ['seo_default_description_bm', 'Pembekal alat ganti dan aksesori penyaman udara pelbagai jenama untuk pemasang, kontraktor, perniagaan dan projek di seluruh Malaysia.'],
     ['seo_default_description_zh', '多品牌冷气批发、零件与配件供应，服务全马来西亚安装商、承包商、企业及工程项目。'],
     ['footer_about_en', 'Professional air conditioning wholesale and parts supplier serving customers nationwide across Malaysia since 2022.'],
@@ -71,7 +71,6 @@ export async function seedDatabase(db) {
     { slug: 'haier', name: 'Haier', desc: 'World\'s No.1 home appliance brand, smart air conditioners for modern living.' },
     { slug: 'hisense', name: 'Hisense', desc: 'Innovative air conditioning with smart connectivity and energy efficiency.' },
     { slug: 'topaire', name: 'Topaire', desc: 'Quality air conditioning brand with reliable performance for Malaysian homes.' },
-    { slug: 'mitsubishi-electric', name: 'Mitsubishi Electric', desc: 'Premium Japanese brand with industry-leading technology and reliability.' },
   ];
   const stmtBrand = db.prepare(
     `INSERT INTO brands (slug, name_en, name_bm, name_zh, description_en, display_order, featured, status)
@@ -238,7 +237,7 @@ export async function seedDatabase(db) {
   console.log('[seed-data] FAQs...');
   const faqs = [
     { q_en: 'What products does ATORA supply?', a_en: 'We supply air conditioners, aircond parts, spare parts, accessories, installation materials and electrical components from leading brands.', category: 'General' },
-    { q_en: 'Which aircond brands are available?', a_en: 'We supply Daikin, Midea, Panasonic, AUX, Acson, Haier, Hisense, Mitsubishi Electric, Topaire and more.' },
+    { q_en: 'Which aircond brands are available?', a_en: 'We supply Daikin, Midea, Panasonic, AUX, Acson, Haier, Hisense, Topaire and more.' },
     { q_en: 'Do you sell aircond spare parts?', a_en: 'Yes — we stock a comprehensive range of compressors, PCB boards, fan motors, capacitors, sensors and more.' },
     { q_en: 'Do you offer wholesale pricing?', a_en: 'Yes. We offer competitive wholesale pricing for installers, contractors and bulk buyers.' },
     { q_en: 'Can I request a bulk quotation?', a_en: 'Yes — please submit a project enquiry via our Project Supply page or contact us directly.' },
@@ -293,7 +292,6 @@ export async function seedDatabase(db) {
     { name: 'Acson 2.5HP Floor Standing Air Conditioner', brand: 'acson', cat: 'air-conditioners-floor-standing', model: 'MSP-F25', cap: '2.5HP / 24000 BTU', ptype: 'Floor Standing', retail: 2599, mode: 'SHOW_PRICE', featured: 1, stock: 'in_stock', spec: 'Cooling 24000 BTU · R32 · Wide-angle airflow.', desc: 'Powerful 2.5HP floor-standing unit for halls and commercial spaces.' },
     { name: 'Haier 1.5HP Smart Inverter Air Conditioner', brand: 'haier', cat: 'air-conditioners-split-unit', model: 'HSU-12TSV', cap: '1.5HP / 12000 BTU', ptype: 'Inverter Split Unit', retail: 1099, price_min: 999, price_max: 1199, mode: 'SHOW_PRICE_RANGE', featured: 1, stock: 'in_stock', spec: 'Cooling 12000 BTU · R32 · WiFi smart control.', desc: 'Smart 1.5HP inverter unit controllable from your phone.' },
     { name: 'Hisense 2.0HP Inverter Split Air Conditioner', brand: 'hisense', cat: 'air-conditioners-split-unit', model: 'AS-24UR4', cap: '2.0HP / 18000 BTU', ptype: 'Inverter Split Unit', retail: 1599, mode: 'CONTACT_FOR_PRICE', stock: 'in_stock', spec: 'Cooling 18000 BTU · R32 · Self-clean.', desc: 'Feature-rich 2.0HP inverter unit — contact us for project pricing.' },
-    { name: 'Mitsubishi Electric 1.5HP Inverter Split', brand: 'mitsubishi-electric', cat: 'air-conditioners-split-unit', model: 'MSXY-FN12', cap: '1.5HP / 12000 BTU', ptype: 'Inverter Split Unit', retail: 2099, mode: 'SHOW_PRICE', featured: 1, stock: 'in_stock', spec: 'Cooling 12000 BTU · R32 · Dual-barrier coating.', desc: 'Industry-leading 1.5HP inverter unit from Mitsubishi Electric.' },
     { name: 'Topaire 1.0HP Non-Inverter Split Air Conditioner', brand: 'topaire', cat: 'air-conditioners-non-inverter', model: 'TA-10N', cap: '1.0HP / 9000 BTU', ptype: 'Non-Inverter Split Unit', retail: 699, mode: 'SHOW_PRICE', stock: 'in_stock', spec: 'Cooling 9000 BTU · R410A.', desc: 'Entry-level 1.0HP non-inverter unit for basic cooling needs.' },
     { name: 'Universal Aircond Compressor 1.5HP', brand: null, cat: 'aircond-parts-compressor', model: 'QXR-30', cap: '1.5HP', ptype: 'Spare Part', retail: 450, mode: 'SHOW_PRICE', stock: 'in_stock', spec: 'Rotary compressor · R22/R410A · 1.5HP.', desc: 'Universal replacement rotary compressor suitable for most 1.5HP units.' },
     { name: 'Aircond PCB Control Board', brand: null, cat: 'aircond-parts-pcb-board', model: 'PCB-UNIV', cap: 'Universal', ptype: 'Spare Part', retail: 180, mode: 'SHOW_PRICE', stock: 'in_stock', spec: 'Main control board · multi-brand compatible.', desc: 'Universal main PCB control board for split-unit air conditioners.' },
@@ -332,7 +330,6 @@ export async function seedDatabase(db) {
     { name: 'Midea 1.5HP Inverter Split Air Conditioner', url: 'https://placehold.co/600x600?text=Midea+1.5HP', alt: 'Midea 1.5HP inverter split unit' },
     { name: 'Daikin 2.0HP Inverter Split Air Conditioner', url: 'https://placehold.co/600x600?text=Daikin+2.0HP', alt: 'Daikin 2.0HP inverter split unit' },
     { name: 'Acson 2.5HP Floor Standing Air Conditioner', url: 'https://placehold.co/600x600?text=Acson+2.5HP', alt: 'Acson 2.5HP floor standing unit' },
-    { name: 'Mitsubishi Electric 1.5HP Inverter Split', url: 'https://placehold.co/600x600?text=Mitsubishi+1.5HP', alt: 'Mitsubishi Electric 1.5HP inverter split' },
   ];
   const stmtMedia = db.prepare(
     `INSERT INTO product_media (product_id, type, url, alt_text, display_order, is_primary, is_featured)

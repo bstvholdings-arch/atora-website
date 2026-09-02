@@ -19,7 +19,7 @@ import { getAllSettings } from '@/lib/settings';
 import { buildPageMetadata } from '@/lib/seo';
 import { breadcrumbSchema, localBusinessSchema, serviceSchema, webPageSchema, itemListSchema } from '@/lib/schema';
 import JsonLd from '@/components/JsonLd';
-import { SERVICE_AREAS, resolveServiceArea, serviceAreaUrlSlug } from '@/lib/positioning';
+import { POSITIONING, SERVICE_AREAS, resolveServiceArea, serviceAreaUrlSlug } from '@/lib/positioning';
 
 // Real-branch page slugs → DB location slug
 const BRANCH_MAP: Record<string, string> = {
@@ -41,7 +41,7 @@ export async function generateMetadata({ params }: { params: Promise<{ lang: str
   const lang: Locale = (LOCALES as readonly string[]).includes(rawLang) ? (rawLang as Locale) : 'en';
   const sa = resolveServiceArea(slug);
   const name = sa ? SERVICE_AREAS[sa].name[lang] : slug;
-  const title = lang === 'zh' ? `${name}冷气 — ATORA 北马专业冷气专门店` : lang === 'bm' ? `${name} Aircond — ATORA Pakar Aircond Utara Malaysia` : `${name} Aircond — ATORA Northern Malaysia Aircond Specialist`;
+  const title = `${name} Aircond — ATORA ${POSITIONING.primary[lang]}`;
   const description = sa ? SERVICE_AREAS[sa].intro[lang] : '';
   return buildPageMetadata({ lang, path: `/${lang}/locations/${slug}`, title, description });
 }
@@ -94,7 +94,7 @@ export default async function LocationPage({ params }: { params: Promise<{ lang:
       <section className="bg-gradient-to-br from-brand-900 via-brand-700 to-brand-500 text-white">
         <div className="container-fluid py-12">
           <span className="inline-flex items-center rounded-full bg-white/10 backdrop-blur px-3 py-1 text-xs font-medium mb-3 ring-1 ring-white/20">
-            {lang === 'zh' ? '北马专业冷气专门店' : lang === 'bm' ? 'Pakar Aircond Utara Malaysia' : 'Northern Malaysia Aircond Specialist'}
+            {POSITIONING.primary[lang]}
           </span>
           <h1 className="heading-1 text-white mb-3">{cfg.name[lang]} Aircond{isBranch ? '' : ' — Service Area'}</h1>
           <p className="opacity-95 max-w-3xl text-lg leading-relaxed">{cfg.intro[lang]}</p>

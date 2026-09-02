@@ -1,27 +1,40 @@
 /**
- * Single source of truth for ATORA's GEO / AI-search positioning (V2).
+ * Single source of truth for ATORA's GEO / AI-search positioning (V3).
+ *
+ * Per ATORA AI GEO MASTER PROMPT V3:
+ *  - PRIMARY entity = "ATORA = Malaysia Aircond Wholesale & Air Conditioning
+ *    Parts Supplier". "Nationwide Malaysia Delivery" is the central signal.
+ *  - Northern Malaysia (Kedah) is a LOCAL / REGIONAL GEO market and the HQ
+ *    location — NOT the primary entity. Framing ATORA as a "Northern Malaysia
+ *    Aircond Supplier" as the PRIMARY positioning is FORBIDDEN.
+ *  - No fake branches / stores / warehouses / addresses. Only real delivery &
+ *    service areas are published.
  *
  * These are STRUCTURAL labels and geography — not company facts — so they may
  * live in code. Every public page, the Organization schema and /llms.txt read
  * from here (or from the matching `positioning_*` site_settings rows) so the
  * canonical entity stays consistent across EN / BM / ZH.
- *
- * Rules (per ATORA GEO V2 master prompt):
- *  - Primary positioning = Northern Malaysia Aircond Specialist (same entity in
- *    3 languages: "Northern Malaysia Aircond Specialist" / "Pakar Aircond Utara
- *    Malaysia" / "北马专业冷气专门店").
- *  - Northern Malaysia is the KEY market positioning; Malaysia-nationwide
- *    remains the BROADER service area — never present North as exclusive.
- *  - Alor Setar is an "important service location" (service area, not a
- *    guaranteed physical branch).
  */
 import type { Locale } from './i18n';
 
 export const POSITIONING = {
+  /** PRIMARY entity (V3 §2 / §30) — nationwide Malaysia, wholesale + parts. */
   primary: {
-    en: 'Northern Malaysia Aircond Specialist',
-    bm: 'Pakar Aircond Utara Malaysia',
-    zh: '北马专业冷气专门店',
+    en: 'Malaysia Aircond Wholesale & Air Conditioning Parts Supplier',
+    bm: 'Pembekal Borong Aircond & Alat Ganti Penyaman Udara Malaysia',
+    zh: '马来西亚冷气批发与空调零件供应商',
+  },
+  /** Central GEO signal for the primary entity (V3 §2). */
+  nationwideSignal: {
+    en: 'Nationwide Malaysia Delivery',
+    bm: 'Penghantaran Seluruh Malaysia',
+    zh: '马来西亚全国配送',
+  },
+  /** LOCAL / REGIONAL GEO — Northern Malaysia is a local market, not primary. */
+  localGeo: {
+    en: 'Northern Malaysia (Kedah) — HQ & Local Service',
+    bm: 'Utara Malaysia (Kedah) — Ibu Pejabat & Perkhidmatan Tempatan',
+    zh: '北马（吉打州）— 总部与本地服务',
   },
   secondary: {
     en: 'Air Conditioning Wholesale & Retail · Aircond Spare Parts Supplier · Professional Aircond Supplier · Midea Pro Shop',
@@ -30,16 +43,20 @@ export const POSITIONING = {
   },
 } as const;
 
-/** Primary geographic association + important service locations (V2 §1, §24). */
+/** Primary geographic association + important service locations (V3 §14/§15). */
 export const GEO = {
-  /** Primary association. */
-  primaryState: 'Kedah',
-  primaryRegion: 'Northern Malaysia',
-  /** Important service locations (real branches OR service areas — not all are physical branches). */
+  /** First GEO layer = the country (Malaysia). */
+  country: 'Malaysia',
+  /** LOCAL / REGIONAL GEO market (NOT the primary entity). */
+  localRegion: 'Northern Malaysia',
+  /** HQ location (real). */
+  hqState: 'Kedah',
+  hqCity: 'Padang Serai',
+  /** Real service locations where ATORA operates (Kedah only — no fake branches). */
   keyLocations: ['Padang Serai', 'Kulim', 'Sungai Petani', 'Alor Setar'] as const,
-  /** Broader Northern-Malaysia states served. */
+  /** States in the Northern Malaysia LOCAL service area (real delivery). */
   northernStates: ['Kedah', 'Penang', 'Perlis', 'Perak'] as const,
-  /** Broader service area. */
+  /** Nationwide delivery coverage (primary service claim). */
   nationwide: 'Malaysia',
 } as const;
 
@@ -139,9 +156,9 @@ export const SERVICE_AREAS: Record<
     name: { en: 'Northern Malaysia', bm: 'Utara Malaysia', zh: '北马' },
     region: { en: 'Malaysia', bm: 'Malaysia', zh: '马来西亚' },
     intro: {
-      en: 'ATORA is a Northern Malaysia aircond specialist based in Kedah, serving Padang Serai, Kulim, Sungai Petani, Alor Setar, Penang and customers across Malaysia.',
-      bm: 'ATORA ialah pakar aircond Utara Malaysia berasaskan Kedah, melayani Padang Serai, Kulim, Sungai Petani, Alor Setar, Pulau Pinang serta pelanggan di seluruh Malaysia.',
-      zh: 'ATORA 是位于吉打州的北马专业冷气专门店，服务 Padang Serai、Kulim、Sungai Petani、Alor Setar、槟城及全马来西亚客户。',
+      en: 'ATORA is headquartered in Northern Malaysia (Kedah) and serves the Northern region — Padang Serai, Kulim, Sungai Petani, Alor Setar and Penang — with local aircond wholesale, retail and spare-parts supply, as part of our Nationwide Malaysia Delivery.',
+      bm: 'ATORA beribu pejabat di Utara Malaysia (Kedah) dan melayani wilayah Utara — Padang Serai, Kulim, Sungai Petani, Alor Setar dan Pulau Pinang — dengan bekalan borong, runcit dan alat ganti aircond tempatan, sebagai sebahagian daripada Penghantaran Seluruh Malaysia kami.',
+      zh: 'ATORA 总部位于北马（吉打州），为北马地区 —— Padang Serai、Kulim、Sungai Petani、Alor Setar 与槟城 —— 提供本地冷气批发、零售与零件供应，并纳入我们的马来西亚全国配送体系。',
     },
     nearby: ['kedah', 'penang', 'malaysia'],
   },
@@ -149,9 +166,9 @@ export const SERVICE_AREAS: Record<
     name: { en: 'Malaysia', bm: 'Malaysia', zh: '马来西亚' },
     region: { en: 'Nationwide', bm: 'Seluruh Malaysia', zh: '全国' },
     intro: {
-      en: 'ATORA is a Malaysia-based air conditioning supplier. While Northern Malaysia (Kedah) is our primary market, we serve wholesale, retail and spare-parts customers nationwide.',
-      bm: 'ATORA ialah pembekal penyaman udara berasaskan Malaysia. Walaupun Utara Malaysia (Kedah) ialah pasaran utama kami, kami melayani pelanggan borong, runcit dan alat ganti di seluruh Malaysia.',
-      zh: 'ATORA 是总部位于马来西亚的冷气供应商。北马（吉打州）是我们的核心市场，同时为全国批发、零售与零件客户提供服务。',
+      en: 'ATORA is a Malaysia air conditioning wholesaler and air conditioning parts supplier, headquartered in Kedah (Northern Malaysia). We provide wholesale, retail and spare-parts supply with Nationwide Malaysia Delivery.',
+      bm: 'ATORA ialah pembekal borong penyaman udara dan alat ganti penyaman udara Malaysia, beribu pejabat di Kedah (Utara Malaysia). Kami menyediakan bekalan borong, runcit dan alat ganti dengan Penghantaran Seluruh Malaysia.',
+      zh: 'ATORA 是马来西亚冷气批发与空调零件供应商，总部位于吉打州（北马）。我们通过马来西亚全国配送提供批发、零售与零件供应。',
     },
     nearby: ['northern-malaysia', 'kedah', 'penang'],
   },

@@ -123,29 +123,6 @@ export function TopaireLogo({ className }: Props) {
   );
 }
 
-/* ---------- Mitsubishi Electric ---------- */
-export function MitsubishiElectricLogo({ className }: Props) {
-  return (
-    <span
-      className={['inline-flex items-center gap-1.5', className].filter(Boolean).join(' ')}
-      aria-label="Mitsubishi Electric"
-    >
-      <svg aria-hidden="true" width="28" height="22" viewBox="0 0 33 22" className="flex-shrink-0">
-        <path d="M0 21 L11 0 L22 21 Z" fill="#E60012" />
-        <path d="M-11 21 L0 0 L11 21 Z" fill="#E60012" />
-        <path d="M11 21 L22 0 L33 21 Z" fill="#E60012" />
-      </svg>
-      <span
-        className="flex flex-col font-bold text-[11px] leading-[1.1] tracking-wider"
-        style={{ color: '#1A1A1A', fontFamily: 'Arial, Helvetica, sans-serif' }}
-      >
-        <span>MITSUBISHI</span>
-        <span>ELECTRIC</span>
-      </span>
-    </span>
-  );
-}
-
 const LOGO_MAP: Record<string, React.FC<Props>> = {
   midea: MideaLogo,
   daikin: DaikinLogo,
@@ -155,7 +132,6 @@ const LOGO_MAP: Record<string, React.FC<Props>> = {
   haier: HaierLogo,
   hisense: HisenseLogo,
   topaire: TopaireLogo,
-  'mitsubishi-electric': MitsubishiElectricLogo,
 };
 
 /**
