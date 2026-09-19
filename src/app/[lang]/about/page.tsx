@@ -1,5 +1,18 @@
 /**
- * /about — about us page.
+ * /about — About Us page.
+ *
+ * Sections:
+ *  1. Hero + company facts (from site_settings)
+ *  2. Who we are / What we supply / Who we serve
+ *  3. Our Story (rich text, managed in /admin/about)
+ *  4. Awards & medals — Grid / Timeline with a story modal (AwardsSection)
+ *  5. Activity & award photo wall — masonry + lightbox (PhotoWall)
+ *  6. Comment board — moderated messages & testimonials (CommentBoard)
+ *
+ * All three new modules are tri-lingual: the DB stores <field>_en / _bm / _zh and
+ * this server component resolves the active locale before handing plain strings
+ * to the client components, so switching language swaps every string, alt text
+ * and SEO tag.
  */
 import type { Metadata } from 'next';
 import Link from 'next/link';
@@ -7,42 +20,212 @@ import { LOCALES, Locale, t, pickLocalized } from '@/lib/i18n';
 import { getAllSettings } from '@/lib/settings';
 import { data } from '@/lib/data';
 import { buildPageMetadata } from '@/lib/seo';
-import { breadcrumbSchema, webPageSchema } from '@/lib/schema';
+import { breadcrumbSchema, itemListSchema, webPageSchema } from '@/lib/schema';
+import { recaptchaSiteKey } from '@/lib/security';
 import JsonLd from '@/components/JsonLd';
+import AwardsSection, { type AwardView } from '@/components/about/AwardsSection';
+import PhotoWall, { type PhotoView } from '@/components/about/PhotoWall';
+import CommentBoard, { type CommentLabels, type PublicCommentView } from '@/components/about/CommentBoard';
+
+const COMMENTS_PER_PAGE = 6;
+
 export async function generateMetadata({ params }: {
     params: Promise<{
         lang: string;
     }>;
 }): Promise<Metadata> {
-    let _params = await params;
+    const _params = await params;
     const { lang: rawLang } = _params;
     const lang: Locale = (LOCALES as readonly string[]).includes(rawLang) ? (rawLang as Locale) : 'en';
+    const s = await getAllSettings();
+
+    // Prefer a settings-driven description so the SEO copy stays editable in the
+    // admin panel; fall back to the localised UI string.
+    const description =
+        (lang === 'zh' ? s.seo_default_description_zh : lang === 'bm' ? s.seo_default_description_bm : s.seo_default_description_en) ||
+        t(lang, 'about.pageSub');
+    const title = `${t(lang, 'about.pageTitle')} — ${s.company_name_en}`;
+
     return buildPageMetadata({
         lang,
         path: `/${lang}/about`,
-        title: `${t(lang, 'about.pageTitle')} — ATORA`,
-        description: t(lang, 'about.pageSub'),
+        title,
+        description,
+        images: ['/atora-logo.png'],
     });
 }
+
 export default async function AboutPage({ params }: {
     params: Promise<{
         lang: string;
     }>;
 }) {
-    let _params = await params;
+    const _params = await params;
     const { lang: rawLang } = _params;
     const lang: Locale = (LOCALES as readonly string[]).includes(rawLang) ? (rawLang as Locale) : 'en';
+
     const s = await getAllSettings();
-    const story = await data.getAboutStory();
-    const photos = await data.listAboutPhotos();
+    const [story, legacyPhotos, awards, awardMedia, gallery, comments, commentTotal] = await Promise.all([
+        data.getAboutStory(),
+        data.listAboutPhotos(),
+        data.listPublishedAwards(),
+        data.listAllAwardMedia(),
+        data.listPublishedGallery(),
+        data.listApprovedComments({ page: 1, perPage: COMMENTS_PER_PAGE, order: 'newest' }),
+        data.countApprovedComments(),
+    ]);
+
     const served = ['installers', 'technicians', 'contractors', 'retailers', 'commercial', 'project', 'bulk'];
-    const jsonLd = [
-        breadcrumbSchema(`/${lang}/about`, [
+
+    /* ---------- Localise the awards ---------- */
+    const awardViews: AwardView[] = awards.map((a) => {
+        const row = a as unknown as Record<string, unknown>;
+        const media = awardMedia
+            .filter((m) => m.award_id === a.id)
+            .map((m) => {
+                const mrow = m as unknown as Record<string, unknown>;
+                return {
+                    id: m.id,
+                    url: m.file_path,
+                    thumb: m.thumb_path || m.file_path,
+                    alt: pickLocalized(mrow, 'alt', lang) || pickLocalized(mrow, 'caption', lang) || a.title_en,
+                    caption: pickLocalized(mrow, 'caption', lang),
+                };
+            });
+        return {
+            id: a.id,
+            slug: a.slug,
+            year: a.year,
+            award_date: a.award_date,
+            title: pickLocalized(row, 'title', lang) || a.title_en,
+            issuer: pickLocalized(row, 'issuer', lang),
+            summary: pickLocalized(row, 'summary', lang),
+            story: pickLocalized(row, 'story', lang),
+            cover: a.cover_image,
+            coverThumb: a.cover_thumb,
+            media,
+        };
+    });
+
+    /* ---------- Localise the photo wall ----------
+     * Falls back to the legacy about_gallery rows (single-language alt text) when
+     * the new tri-lingual gallery module has not been populated yet. */
+    const photoViews: PhotoView[] = gallery.length
+        ? gallery.map((p) => {
+              const row = p as unknown as Record<string, unknown>;
+              return {
+                  id: p.id,
+                  title: pickLocalized(row, 'title', lang),
+                  caption: pickLocalized(row, 'caption', lang),
+                  alt: pickLocalized(row, 'alt', lang) || pickLocalized(row, 'title', lang) || p.event_name || '',
+                  year: p.year,
+                  eventName: p.event_name,
+                  thumb: p.thumb_path || p.file_path,
+                  full: p.file_path,
+              };
+          })
+        : legacyPhotos.map((p) => ({
+              id: p.id,
+              title: '',
+              caption: '',
+              alt: p.alt_text ?? '',
+              year: null,
+              eventName: null,
+              thumb: p.url,
+              full: p.url,
+          }));
+
+    /* ---------- Localise the comments ---------- */
+    const commentViews: PublicCommentView[] = comments.map((c) => ({
+        id: c.id,
+        name: c.name,
+        message: c.message,
+        rating: c.rating,
+        awardTitle:
+            (lang === 'zh' ? c.award_title_zh : lang === 'bm' ? c.award_title_bm : c.award_title_en) ||
+            c.award_title_en ||
+            null,
+        createdAt: c.created_at,
+    }));
+
+    const awardOptions = awardViews.map((a) => ({ id: a.id, title: a.title }));
+
+    const awardLabels = {
+        title: t(lang, 'about.awardsTitle'),
+        sub: t(lang, 'about.awardsSub'),
+        viewGrid: t(lang, 'about.viewGrid'),
+        viewTimeline: t(lang, 'about.viewTimeline'),
+        readStory: t(lang, 'about.readStory'),
+        issuedBy: t(lang, 'about.issuedBy'),
+        close: t(lang, 'about.close'),
+        openFullPage: t(lang, 'about.openFullPage'),
+        storyTitle: t(lang, 'about.awardStoryTitle'),
+        empty: t(lang, 'about.awardsEmpty'),
+    };
+
+    const wallLabels = {
+        title: t(lang, 'about.galleryTitle'),
+        sub: t(lang, 'about.gallerySub'),
+        empty: t(lang, 'about.galleryEmpty'),
+        photoCount: t(lang, 'about.photoCountLabel'),
+        close: t(lang, 'about.close'),
+        previous: t(lang, 'common.previous'),
+        next: t(lang, 'common.next'),
+    };
+
+    const commentLabels: CommentLabels = {
+        title: t(lang, 'about.commentsTitle'),
+        sub: t(lang, 'about.commentsSub'),
+        formName: t(lang, 'about.commentsFormName'),
+        formEmail: t(lang, 'about.commentsFormEmail'),
+        formPhone: t(lang, 'about.commentsFormPhone'),
+        formMessage: t(lang, 'about.commentsFormMessage'),
+        formRating: t(lang, 'about.commentsFormRating'),
+        formAward: t(lang, 'about.commentsFormAward'),
+        formAwardNone: t(lang, 'about.commentsFormAwardNone'),
+        formSubmit: t(lang, 'about.commentsFormSubmit'),
+        formPrivacy: t(lang, 'about.commentsFormPrivacy'),
+        success: t(lang, 'about.commentsSuccess'),
+        error: t(lang, 'about.commentsError'),
+        rateLimited: t(lang, 'about.commentsRateLimited'),
+        errName: t(lang, 'about.commentsErrName'),
+        errMessage: t(lang, 'about.commentsErrMessage'),
+        errEmail: t(lang, 'about.commentsErrEmail'),
+        errPhone: t(lang, 'about.commentsErrPhone'),
+        errCaptcha: t(lang, 'about.commentsErrCaptcha'),
+        listTitle: t(lang, 'about.commentsListTitle'),
+        empty: t(lang, 'about.commentsEmpty'),
+        sortNewest: t(lang, 'about.commentsSortNewest'),
+        sortOldest: t(lang, 'about.commentsSortOldest'),
+        prev: t(lang, 'about.commentsPrev'),
+        next: t(lang, 'about.commentsNext'),
+        pageOf: t(lang, 'about.commentsPageOf'),
+    };
+
+    const pageTitle = `${t(lang, 'about.pageTitle')} — ${s.company_name_en}`;
+    const pagePath = `/${lang}/about`;
+
+    const jsonLd: Record<string, unknown>[] = [
+        breadcrumbSchema(pagePath, [
             { name: t(lang, 'nav.home'), url: `/${lang}` },
-            { name: t(lang, 'nav.about'), url: `/${lang}/about` },
+            { name: t(lang, 'nav.about'), url: pagePath },
         ]),
-        webPageSchema({ lang, path: `/${lang}/about`, title: `${t(lang, 'about.pageTitle')} — ATORA`, description: t(lang, 'about.pageSub') }),
+        webPageSchema({ lang, path: pagePath, title: pageTitle, description: t(lang, 'about.pageSub') }),
     ];
+    if (awardViews.length > 0) {
+        jsonLd.push(
+            itemListSchema({
+                path: pagePath,
+                name: t(lang, 'about.awardsTitle'),
+                items: awardViews.map((a) => ({
+                    name: a.title,
+                    url: `/${lang}/about/awards/${a.slug}`,
+                    image: a.coverThumb || a.cover || null,
+                })),
+            })
+        );
+    }
+
     return (<div>
       <JsonLd id="about-page" data={jsonLd} />
 
@@ -126,26 +309,21 @@ export default async function AboutPage({ params }: {
         );
       })()}
 
-      {/* Photo gallery — cover (is_primary) shown first */}
-      {photos.length > 0 && (
-        <section className="section">
-          <div className="container-fluid">
-            <h2 className="heading-2 mb-6 text-center">
-              {lang === 'zh' ? '我们的相册' : lang === 'bm' ? 'Galeri Kami' : 'Our Gallery'}
-            </h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-              {photos.map((ph) => (
-                <div key={ph.id} className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 bg-gray-100">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={ph.url} alt={ph.alt_text ?? ''} className="object-cover w-full h-full" />
-                  {ph.is_primary === 1 && (
-                    <span className="absolute top-2 left-2 badge-green">Cover</span>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
+      {/* Awards & medals — Grid / Timeline with a story modal */}
+      <AwardsSection awards={awardViews} labels={awardLabels} lang={lang} />
+
+      {/* Activity & award photo wall — masonry + lightbox */}
+      <PhotoWall photos={photoViews} labels={wallLabels} />
+
+      {/* Comment board — moderated visitor messages */}
+      <CommentBoard
+        lang={lang}
+        labels={commentLabels}
+        awards={awardOptions}
+        initialComments={commentViews}
+        initialTotal={commentTotal}
+        perPage={COMMENTS_PER_PAGE}
+        recaptchaSiteKey={recaptchaSiteKey()}
+      />
     </div>);
 }

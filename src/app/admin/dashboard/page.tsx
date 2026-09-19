@@ -27,6 +27,10 @@ export default async function DashboardPage() {
         <StatCard label="Locations" value={counts.locations} accent="brand" href="/admin/locations" />
         <StatCard label="Featured Products" value={counts.featuredProducts} accent="yellow" href="/admin/products" />
         <StatCard label="Featured Partners" value={counts.featuredPartners} accent="yellow" href="/admin/partners" />
+        <StatCard label="Awards" value={counts.awards} accent="brand" href="/admin/awards" />
+        <StatCard label="Gallery Photos" value={counts.gallery} accent="brand" href="/admin/gallery" />
+        <StatCard label="Comments" value={counts.comments} accent="green" href="/admin/comments" />
+        <StatCard label="Pending Comments" value={counts.commentsPending} accent="yellow" href="/admin/comments" />
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6">

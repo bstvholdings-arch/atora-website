@@ -1,0 +1,23 @@
+{
+  "before": {
+    "brands": 1,
+    "products": 3,
+    "media": 1,
+    "faqs": 0,
+    "siteSettings": 0
+  },
+  "after": {
+    "brands": 0,
+    "products": 0,
+    "media": 0,
+    "faqs": 0,
+    "siteSettings": 0
+  },
+  "actions": [
+    "deleted 1 product_media rows for Mitsubishi products",
+    "deleted 3 Mitsubishi products",
+    "deleted 1 Mitsubishi brand rows",
+    "cleaned 0 FAQ rows (brand token stripped, row kept)",
+    "cleaned 0 site_settings values"
+  ]
+}

@@ -13,6 +13,36 @@ import { Pool } from 'pg';
 import fs from 'node:fs';
 import path from 'node:path';
 
+/**
+ * Minimal .env loader — only runs when DATABASE_URL is not already in the
+ * environment, so `npm run db:init` / `db:seed` / `db:migrate` work out of the
+ * box without exporting anything. Existing env vars always win.
+ */
+function loadDotEnv() {
+  if (process.env.DATABASE_URL || process.env.DIRECT_URL || process.env.POSTGRES_URL) return;
+  for (const file of ['.env.local', '.env']) {
+    const p = path.join(process.cwd(), file);
+    if (!fs.existsSync(p)) continue;
+    for (const rawLine of fs.readFileSync(p, 'utf8').split(/\r?\n/)) {
+      const line = rawLine.trim();
+      if (!line || line.startsWith('#')) continue;
+      const eq = line.indexOf('=');
+      if (eq < 1) continue;
+      const key = line.slice(0, eq).trim();
+      let value = line.slice(eq + 1).trim();
+      if (
+        (value.startsWith('"') && value.endsWith('"')) ||
+        (value.startsWith("'") && value.endsWith("'"))
+      ) {
+        value = value.slice(1, -1);
+      }
+      if (!(key in process.env)) process.env[key] = value;
+    }
+    if (process.env.DATABASE_URL || process.env.DIRECT_URL || process.env.POSTGRES_URL) return;
+  }
+}
+loadDotEnv();
+
 const connectionString =
   process.env.DATABASE_URL || process.env.DIRECT_URL || process.env.POSTGRES_URL;
 

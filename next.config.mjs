@@ -28,14 +28,23 @@ const nextConfig = {
   // CSP keeps 'unsafe-inline' because Next/Tailwind inline styles are required;
   // upgrade to nonces in a future hardening pass if you want a strict CSP.
   async headers() {
+    // Optional Google reCAPTCHA on the comment board. The widget loads a script
+    // and renders in an iframe, so the CSP has to be relaxed — but ONLY when a
+    // key is actually configured. Without keys the strict policy stays in place.
+    const recaptchaEnabled = Boolean(
+      process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY || process.env.RECAPTCHA_SECRET_KEY
+    );
+    const captchaScript = recaptchaEnabled ? ' https://www.google.com https://www.gstatic.com' : '';
+    const captchaFrame = recaptchaEnabled ? ' https://www.google.com' : "'none'";
+
     const csp = [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline'",
+      `script-src 'self' 'unsafe-inline'${captchaScript}`,
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: https:",
       "font-src 'self' data:",
-      "connect-src 'self'",
-      "frame-src 'none'",
+      `connect-src 'self'${recaptchaEnabled ? ' https://www.google.com' : ''}`,
+      `frame-src ${captchaFrame}`,
       "object-src 'none'",
       "base-uri 'self'",
       "form-action 'self'",

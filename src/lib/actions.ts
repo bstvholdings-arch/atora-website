@@ -8,7 +8,16 @@ import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import bcrypt from 'bcryptjs';
 import crypto from 'node:crypto';
-import db, { type ProductMedia, type AboutContent, type AboutPhoto } from '@/lib/db';
+import db, {
+    type ProductMedia,
+    type AboutContent,
+    type AboutPhoto,
+    type Award,
+    type AwardMedia,
+    type GalleryItem,
+    type Comment,
+} from '@/lib/db';
+import { data } from '@/lib/data';
 import { getCurrentAdmin, createSession, destroySession } from '@/lib/auth';
 import { setManySettings } from '@/lib/settings';
 import { slugify } from '@/lib/slug';
@@ -769,5 +778,393 @@ export async function reorderAboutPhotosAction(orderedIds: number[]): Promise<{ 
         return { ok: true };
     } catch (e: any) {
         return { ok: false, error: e?.message ?? 'Failed to reorder' };
+    }
+}
+
+/* ============================================================
+ * ABOUT US — AWARDS (medals / trophies)
+ * ============================================================ */
+
+/** Admin-only guard for content moderation / deletion. */
+async function requireModerator(): Promise<{ id: number; role: string } | null> {
+    const admin = await getCurrentAdmin();
+    if (!admin) return null;
+    // Only the admin role may approve comments and delete content.
+    if (admin.role !== 'admin' && admin.role !== 'superadmin') return null;
+    return { id: admin.id, role: admin.role };
+}
+
+/** Fresh award list (all statuses) for the admin client. */
+export async function listAwardsAction(): Promise<Award[]> {
+    const admin = await getCurrentAdmin();
+    if (!admin) return [];
+    return await data.listAllAwards();
+}
+
+async function uniqueAwardSlug(slug: string, ignoreId?: number): Promise<string> {
+    let s = slug || `award-${Date.now()}`;
+    let i = 2;
+    for (;;) {
+        const row = (await db.prepare('SELECT id FROM awards WHERE slug = ?').get(s)) as { id: number } | undefined;
+        if (!row || row.id === ignoreId) return s;
+        s = `${slug}-${i++}`;
+    }
+}
+
+/** Read the tri-lingual award fields out of a FormData payload. */
+function readAwardForm(formData: FormData) {
+    const str = (k: string) => formData.get(k)?.toString().trim() || null;
+    return {
+        year: str('year'),
+        award_date: str('award_date'),
+        title_en: formData.get('title_en')?.toString().trim() ?? '',
+        title_bm: str('title_bm'),
+        title_zh: str('title_zh'),
+        issuer_en: str('issuer_en'),
+        issuer_bm: str('issuer_bm'),
+        issuer_zh: str('issuer_zh'),
+        summary_en: str('summary_en'),
+        summary_bm: str('summary_bm'),
+        summary_zh: str('summary_zh'),
+        story_en: str('story_en'),
+        story_bm: str('story_bm'),
+        story_zh: str('story_zh'),
+        cover_image: str('cover_image'),
+        cover_thumb: str('cover_thumb'),
+        seo_title_en: str('seo_title_en'),
+        seo_title_bm: str('seo_title_bm'),
+        seo_title_zh: str('seo_title_zh'),
+        seo_desc_en: str('seo_desc_en'),
+        seo_desc_bm: str('seo_desc_bm'),
+        seo_desc_zh: str('seo_desc_zh'),
+        sort_order: Number(formData.get('sort_order') || 0),
+        is_published: formData.get('is_published') === 'off' || formData.get('is_published') === '0' ? 0 : 1,
+    };
+}
+
+export async function createAwardAction(formData: FormData): Promise<{ ok: boolean; id?: number; error?: string }> {
+    const admin = await requireModerator();
+    if (!admin) return { ok: false, error: 'Unauthorized' };
+    const d = readAwardForm(formData);
+    if (!d.title_en) return { ok: false, error: 'English title is required.' };
+    try {
+        const requested = formData.get('slug')?.toString().trim();
+        const slug = await uniqueAwardSlug(slugify(requested || d.title_en));
+        const id = await data.createAward({ ...d, slug });
+        revalidatePath('/admin/awards');
+        revalidatePath('/[lang]/about', 'page');
+        revalidatePath('/[lang]/about/awards/[slug]', 'page');
+        return { ok: true, id };
+    } catch (e: any) {
+        return { ok: false, error: e?.message ?? 'Failed to create award' };
+    }
+}
+
+export async function updateAwardAction(id: number, formData: FormData): Promise<{ ok: boolean; error?: string }> {
+    const admin = await requireModerator();
+    if (!admin) return { ok: false, error: 'Unauthorized' };
+    const d = readAwardForm(formData);
+    if (!d.title_en) return { ok: false, error: 'English title is required.' };
+    try {
+        const existing = await data.getAwardById(id);
+        if (!existing) return { ok: false, error: 'Award not found' };
+        const requested = formData.get('slug')?.toString().trim();
+        const slug = await uniqueAwardSlug(slugify(requested || d.title_en || existing.slug), id);
+        await data.updateAward(id, { ...d, slug });
+        revalidatePath('/admin/awards');
+        revalidatePath('/[lang]/about', 'page');
+        revalidatePath(`/[lang]/about/awards/${slug}`, 'page');
+        return { ok: true };
+    } catch (e: any) {
+        return { ok: false, error: e?.message ?? 'Failed to update award' };
+    }
+}
+
+export async function deleteAwardAction(id: number): Promise<{ ok: boolean; error?: string }> {
+    const admin = await requireModerator();
+    if (!admin) return { ok: false, error: 'Unauthorized' };
+    try {
+        // Remove the award's storage objects before dropping the rows.
+        const media = await data.listAwardMedia(id);
+        for (const m of media) {
+            await deleteStorageFileByUrl(m.file_path);
+            await deleteStorageFileByUrl(m.thumb_path);
+        }
+        await data.deleteAward(id);
+        revalidatePath('/admin/awards');
+        revalidatePath('/[lang]/about', 'page');
+        return { ok: true };
+    } catch (e: any) {
+        return { ok: false, error: e?.message ?? 'Failed to delete award' };
+    }
+}
+
+export async function setAwardPublishedAction(id: number, published: boolean): Promise<{ ok: boolean; error?: string }> {
+    const admin = await requireModerator();
+    if (!admin) return { ok: false, error: 'Unauthorized' };
+    try {
+        await data.setAwardPublished(id, published);
+        revalidatePath('/admin/awards');
+        revalidatePath('/[lang]/about', 'page');
+        return { ok: true };
+    } catch (e: any) {
+        return { ok: false, error: e?.message ?? 'Failed to change status' };
+    }
+}
+
+export async function reorderAwardsAction(orderedIds: number[]): Promise<{ ok: boolean; error?: string }> {
+    const admin = await requireModerator();
+    if (!admin) return { ok: false, error: 'Unauthorized' };
+    try {
+        await data.reorderAwards(orderedIds);
+        revalidatePath('/admin/awards');
+        revalidatePath('/[lang]/about', 'page');
+        return { ok: true };
+    } catch (e: any) {
+        return { ok: false, error: e?.message ?? 'Failed to reorder' };
+    }
+}
+
+/* ----- Award media ----- */
+
+export async function listAwardMediaAction(awardId: number): Promise<AwardMedia[]> {
+    const admin = await getCurrentAdmin();
+    if (!admin) return [];
+    return await data.listAwardMedia(awardId);
+}
+
+export async function addAwardMediaAction(
+    awardId: number,
+    items: { file_path: string; thumb_path: string | null }[]
+): Promise<{ ok: boolean; added?: number; error?: string }> {
+    const admin = await requireModerator();
+    if (!admin) return { ok: false, error: 'Unauthorized' };
+    if (!items || items.length === 0) return { ok: true, added: 0 };
+    try {
+        const added = await data.addAwardMedia(awardId, items);
+        revalidatePath('/admin/awards');
+        revalidatePath('/[lang]/about', 'page');
+        return { ok: true, added };
+    } catch (e: any) {
+        return { ok: false, error: e?.message ?? 'Failed to add media' };
+    }
+}
+
+export async function updateAwardMediaAction(mediaId: number, formData: FormData): Promise<{ ok: boolean; error?: string }> {
+    const admin = await requireModerator();
+    if (!admin) return { ok: false, error: 'Unauthorized' };
+    const str = (k: string) => formData.get(k)?.toString().trim() || null;
+    try {
+        await data.updateAwardMedia(mediaId, {
+            caption_en: str('caption_en'),
+            caption_bm: str('caption_bm'),
+            caption_zh: str('caption_zh'),
+            alt_en: str('alt_en'),
+            alt_bm: str('alt_bm'),
+            alt_zh: str('alt_zh'),
+        });
+        revalidatePath('/admin/awards');
+        revalidatePath('/[lang]/about', 'page');
+        return { ok: true };
+    } catch (e: any) {
+        return { ok: false, error: e?.message ?? 'Failed to update media' };
+    }
+}
+
+export async function deleteAwardMediaAction(mediaId: number): Promise<{ ok: boolean; error?: string }> {
+    const admin = await requireModerator();
+    if (!admin) return { ok: false, error: 'Unauthorized' };
+    try {
+        const rows = (await db.prepare('SELECT file_path, thumb_path FROM award_media WHERE id = ?').get(mediaId)) as
+            | { file_path: string; thumb_path: string | null }
+            | undefined;
+        await deleteStorageFileByUrl(rows?.file_path);
+        await deleteStorageFileByUrl(rows?.thumb_path);
+        await data.deleteAwardMedia(mediaId);
+        revalidatePath('/admin/awards');
+        revalidatePath('/[lang]/about', 'page');
+        return { ok: true };
+    } catch (e: any) {
+        return { ok: false, error: e?.message ?? 'Failed to delete media' };
+    }
+}
+
+export async function reorderAwardMediaAction(awardId: number, orderedIds: number[]): Promise<{ ok: boolean; error?: string }> {
+    const admin = await requireModerator();
+    if (!admin) return { ok: false, error: 'Unauthorized' };
+    try {
+        await data.reorderAwardMedia(awardId, orderedIds);
+        revalidatePath('/admin/awards');
+        revalidatePath('/[lang]/about', 'page');
+        return { ok: true };
+    } catch (e: any) {
+        return { ok: false, error: e?.message ?? 'Failed to reorder media' };
+    }
+}
+
+export async function setAwardMediaCoverAction(awardId: number, mediaId: number): Promise<{ ok: boolean; error?: string }> {
+    const admin = await requireModerator();
+    if (!admin) return { ok: false, error: 'Unauthorized' };
+    try {
+        await data.setAwardMediaCover(awardId, mediaId);
+        revalidatePath('/admin/awards');
+        revalidatePath('/[lang]/about', 'page');
+        return { ok: true };
+    } catch (e: any) {
+        return { ok: false, error: e?.message ?? 'Failed to set cover' };
+    }
+}
+
+/* ============================================================
+ * ABOUT US — GALLERY (photo wall / album)
+ * ============================================================ */
+
+export async function listGalleryAction(): Promise<GalleryItem[]> {
+    const admin = await getCurrentAdmin();
+    if (!admin) return [];
+    return await data.listAllGallery();
+}
+
+export async function addGalleryAction(
+    items: { file_path: string; thumb_path: string | null; event_name?: string | null; year?: string | null }[]
+): Promise<{ ok: boolean; added?: number; error?: string }> {
+    const admin = await requireModerator();
+    if (!admin) return { ok: false, error: 'Unauthorized' };
+    if (!items || items.length === 0) return { ok: true, added: 0 };
+    try {
+        const added = await data.createGalleryItems(
+            items.map((i) => ({
+                file_path: i.file_path,
+                thumb_path: i.thumb_path,
+                event_name: i.event_name ?? null,
+                year: i.year ?? null,
+                is_published: 1,
+            }))
+        );
+        revalidatePath('/admin/gallery');
+        revalidatePath('/[lang]/about', 'page');
+        return { ok: true, added };
+    } catch (e: any) {
+        return { ok: false, error: e?.message ?? 'Failed to add photos' };
+    }
+}
+
+export async function updateGalleryAction(id: number, formData: FormData): Promise<{ ok: boolean; error?: string }> {
+    const admin = await requireModerator();
+    if (!admin) return { ok: false, error: 'Unauthorized' };
+    const str = (k: string) => formData.get(k)?.toString().trim() || null;
+    try {
+        const current = await data.getGalleryItem(id);
+        if (!current) return { ok: false, error: 'Photo not found' };
+        await data.updateGalleryItem(id, {
+            title_en: str('title_en'),
+            title_bm: str('title_bm'),
+            title_zh: str('title_zh'),
+            caption_en: str('caption_en'),
+            caption_bm: str('caption_bm'),
+            caption_zh: str('caption_zh'),
+            alt_en: str('alt_en'),
+            alt_bm: str('alt_bm'),
+            alt_zh: str('alt_zh'),
+            year: str('year'),
+            event_name: str('event_name'),
+            file_path: str('file_path') ?? current.file_path,
+            thumb_path: formData.has('thumb_path') ? str('thumb_path') : current.thumb_path,
+            is_published: formData.get('is_published') === 'off' ? 0 : 1,
+        });
+        revalidatePath('/admin/gallery');
+        revalidatePath('/[lang]/about', 'page');
+        return { ok: true };
+    } catch (e: any) {
+        return { ok: false, error: e?.message ?? 'Failed to update photo' };
+    }
+}
+
+export async function deleteGalleryAction(id: number): Promise<{ ok: boolean; error?: string }> {
+    const admin = await requireModerator();
+    if (!admin) return { ok: false, error: 'Unauthorized' };
+    try {
+        const row = await data.getGalleryItem(id);
+        await deleteStorageFileByUrl(row?.file_path);
+        await deleteStorageFileByUrl(row?.thumb_path);
+        await data.deleteGalleryItem(id);
+        revalidatePath('/admin/gallery');
+        revalidatePath('/[lang]/about', 'page');
+        return { ok: true };
+    } catch (e: any) {
+        return { ok: false, error: e?.message ?? 'Failed to delete photo' };
+    }
+}
+
+export async function reorderGalleryAction(orderedIds: number[]): Promise<{ ok: boolean; error?: string }> {
+    const admin = await requireModerator();
+    if (!admin) return { ok: false, error: 'Unauthorized' };
+    try {
+        await data.reorderGallery(orderedIds);
+        revalidatePath('/admin/gallery');
+        revalidatePath('/[lang]/about', 'page');
+        return { ok: true };
+    } catch (e: any) {
+        return { ok: false, error: e?.message ?? 'Failed to reorder' };
+    }
+}
+
+export async function setGalleryCoverAction(id: number): Promise<{ ok: boolean; error?: string }> {
+    const admin = await requireModerator();
+    if (!admin) return { ok: false, error: 'Unauthorized' };
+    try {
+        await data.setGalleryCover(id);
+        revalidatePath('/admin/gallery');
+        revalidatePath('/[lang]/about', 'page');
+        return { ok: true };
+    } catch (e: any) {
+        return { ok: false, error: e?.message ?? 'Failed to set cover' };
+    }
+}
+
+/* ============================================================
+ * ABOUT US — COMMENTS (moderation)
+ * ============================================================ */
+
+export async function listCommentsAction(filter: { status?: string; q?: string } = {}): Promise<Comment[]> {
+    const admin = await getCurrentAdmin();
+    if (!admin) return [];
+    return await data.listComments(filter);
+}
+
+export async function commentStatsAction(): Promise<Record<string, number>> {
+    const admin = await getCurrentAdmin();
+    if (!admin) return {};
+    return await data.countCommentsByStatus();
+}
+
+export async function moderateCommentsAction(
+    ids: number[],
+    status: 'approved' | 'rejected' | 'spam' | 'pending'
+): Promise<{ ok: boolean; updated?: number; error?: string }> {
+    const mod = await requireModerator();
+    if (!mod) return { ok: false, error: 'Unauthorized — admin role required' };
+    if (!ids || ids.length === 0) return { ok: true, updated: 0 };
+    try {
+        await data.setCommentsStatus(ids, status);
+        revalidatePath('/admin/comments');
+        revalidatePath('/[lang]/about', 'page');
+        return { ok: true, updated: ids.length };
+    } catch (e: any) {
+        return { ok: false, error: e?.message ?? 'Failed to update comments' };
+    }
+}
+
+export async function deleteCommentsAction(ids: number[]): Promise<{ ok: boolean; deleted?: number; error?: string }> {
+    const mod = await requireModerator();
+    if (!mod) return { ok: false, error: 'Unauthorized — admin role required' };
+    if (!ids || ids.length === 0) return { ok: true, deleted: 0 };
+    try {
+        await data.deleteComments(ids);
+        revalidatePath('/admin/comments');
+        revalidatePath('/[lang]/about', 'page');
+        return { ok: true, deleted: ids.length };
+    } catch (e: any) {
+        return { ok: false, error: e?.message ?? 'Failed to delete comments' };
     }
 }

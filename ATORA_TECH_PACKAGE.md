@@ -48,9 +48,16 @@ atora-website/
 │  │  │  ├─ brands/  brands/[slug]/     # 品牌列表 / 品牌详情（Brand 结构化数据）
 │  │  │  ├─ technical-partners/  [slug]/# 合作伙伴（Partner 结构化数据，隐私感知）
 │  │  │  ├─ locations/  about/  contact/ faq/  project-supply/
+│  │  │  │  └─ about/awards/[slug]/     # ★ 奖项详情页（独立 SEO + CreativeWork）
 │  │  │  └─ aircond-wholesale-malaysia/ # ★ GEO 内容中心（canonical 范例页）
 │  │  ├─ admin/                         # 后台（受 robots 保护，GEO 不触碰）
+│  │  │  ├─ awards/                     # ★ 奖项管理 + 奖牌图片管理
+│  │  │  ├─ gallery/                    # ★ 相册管理
+│  │  │  └─ comments/                   # ★ 留言审核
 │  │  ├─ api/                           # API handlers（受 robots 保护）
+│  │  │  ├─ about/                      # ★ 公开 API：awards / gallery / comments
+│  │  │  ├─ admin/                      # ★ 后台 API：awards / gallery / comments（鉴权）
+│  │  │  └─ upload/                     # 图片上传（photo 允许 WebP，上限 8MB）
 │  │  ├─ robots.txt/route.ts           # ★ AI 爬虫白名单
 │  │  ├─ sitemap.xml/route.ts          # ★ 多语言 + hreflang 站点地图
 │  │  └─ llms.txt/route.ts             # ★ 给 LLM 的纯文本摘要
@@ -59,11 +66,17 @@ atora-website/
 │  │  ├─ schema.ts                      # ★ 全部 JSON-LD 构建器
 │  │  ├─ i18n.ts                        # ★ LOCALES / HREFLANG_TAGS / pickLocalized / t
 │  │  ├─ data.ts                        # 数据访问层（data 对象 + 分类层级工具）
-│  │  ├─ db.ts                          # pg Pool + 类型（Brand/Category/FAQ/Location/Product/...）
+│  │  ├─ db.ts                          # pg Pool + 类型（Brand/Category/FAQ/Location/Product/Award/GalleryItem/Comment/...）
 │  │  ├─ settings.ts                    # getAllSettings() → site_settings 单行
-│  │  └─ storage.ts                     # Supabase Storage 封装
+│  │  ├─ storage.ts                     # Supabase Storage 封装
+│  │  ├─ security.ts                    # ★ escapeHtml / sanitizePlainText / rateLimit / honeypot / reCAPTCHA
+│  │  ├─ imageCompress.ts               # ★ 客户端压缩 + 缩略图 + 上传（WebP→JPEG 回退）
+│  │  └─ apiGuard.ts                    # ★ requireAdmin / requireModeratorRole / readJsonBody / 类型转换助手
 │  ├─ components/
 │  │  ├─ JsonLd.tsx                     # ★ 安全渲染 JSON-LD（转义 < > &）
+│  │  ├─ about/AwardsSection.tsx        # ★ 奖项 Grid/Timeline + 故事弹窗
+│  │  ├─ about/PhotoWall.tsx            # ★ CSS Masonry 照片墙 + Lightbox
+│  │  ├─ about/CommentBoard.tsx         # ★ 留言表单 + 已批准留言列表
 │  │  ├─ Header.tsx  Footer.tsx  MobileBottomBar.tsx  HtmlLang.tsx
 │  └─ messages/  en.json  bm.json  zh.json   # UI 文案（含品牌列表等 GEO 文案）
 ├─ public/                             # 静态资源（atora-logo.png 等）
@@ -217,12 +230,16 @@ return (<div><JsonLd id="aircond-wholesale-hub" data={jsonLd} /> ... </div>);
 | FAQs | `listActiveFaqs()` |
 | Partners | `listActivePartners()` · `listFeaturedPartners(limit=6)` · `getPartnerBySlug(slug)` · `searchPartners({q?, city?, serviceType?})` |
 | Homepage | `listHomepageSections()` |
-| Counts | `counts()` → `{products, brands, categories, enquiries, partners, locations, featuredProducts, featuredPartners}` |
+| Awards | `listPublishedAwards()` · `listAllAwards()` · `getPublishedAwardBySlug(slug)` · `getAwardById(id)` · `listAwardMedia(awardId)` · `listAllAwardMedia()` · `createAward(d)` · `updateAward(id,d)` · `deleteAward(id)` · `setAwardPublished(id,bool)` · `reorderAwards(ids)` · `addAwardMedia(d)` · `updateAwardMedia(id,d)` · `deleteAwardMedia(id)` · `reorderAwardMedia(ids)` · `setAwardMediaCover(id)` |
+| Gallery | `listPublishedGallery()` · `listAllGallery()` · `getGalleryItem(id)` · `createGalleryItems(items)` · `updateGalleryItem(id,d)` · `deleteGalleryItem(id)` · `reorderGallery(ids)` · `setGalleryCover(id)` |
+| Comments | `listApprovedComments({page,perPage,order})` · `countApprovedComments()` · `createComment(d)` · `listComments({status,q,limit})` · `countCommentsByStatus()` · `setCommentsStatus(ids,status)` · `deleteComments(ids)` |
+| Counts | `counts()` → `{products, brands, categories, enquiries, partners, locations, featuredProducts, featuredPartners, awards, gallery, comments, commentsPending}` |
 
 模块级自由函数（分类层级修复，GEO 审计中用过）：
 - `effectiveParentId(category, all)`：兼容 `parent_id` 未填、靠 slug 派生的真实顶层
 - `childCategoryIds(parentId, all)`：返回某分组的全部子分类 id
 - `resolveBrand(...)`：产品 → 品牌解析
+- `syncAwardCover(awardId)`：把某奖项被标记为封面的 `award_media` 镜像到 `awards.cover_image` / `cover_thumb`（**模块级函数，不在 `data` 对象里**）
 
 站点设置：`getAllSettings()`（`src/lib/settings.ts`）读取 `site_settings` 单行，返回 `Record<string,string>`，常用键：`company_name_en/_bm/_zh`、`registration_no`、`hq_phone`、`whatsapp_number`、`email`、`hq_address`、`opening_hours_en`、`facebook`、`instagram`、`tagline_en`、`seo_default_title_*`、`seo_default_description_*`、`footer_about_*`。
 
@@ -271,6 +288,21 @@ return (<div><JsonLd id="aircond-wholesale-hub" data={jsonLd} /> ... </div>);
 **F. 新增产品 / 分类 / FAQ / 分店 / 合作伙伴**
 - 走数据库 + 后台 admin（`/admin`），前端与 sitemap/llms.txt 会自动反映。
 
+**G. 新增一个奖项（含奖牌图 + 三语故事）**
+- 后台 `/admin/awards` → 新建奖项 → 填 slug / 年份 / 三语标题 / 三语颁发机构 / 三语简述 / 三语故事 / SEO title / SEO description；
+- 保存后进入该奖项的图片管理，上传奖牌图（自动压缩 + 生成缩略图），可排序、设封面；
+- 前台 `/[lang]/about` 的奖项区块与 `/[lang]/about/awards/<slug>` 自动出现，`sitemap.xml` 也会自动收录（`listPublishedAwards()`）。
+
+**H. 新增一张相册照片**
+- 后台 `/admin/gallery` → 上传前可填活动名称 / 拍摄年份 → 上传后可编辑三语 title / caption / alt；
+- 前台 About 照片墙自动出现（CSS Masonry），点击进 Lightbox。
+- 注意：`about` 页在 `gallery` 表为空时会**回退**旧的 `about_gallery`（`listAboutPhotos()`）数据，因此新照片一旦入库就会接管该区块。
+
+**I. 调整留言防垃圾策略**
+- 阈值集中在 `src/app/api/about/comments/route.ts`：burst 限流 1 次 / 30 秒，窗口限流 5 次 / 1800 秒；
+- honeypot 字段固定为 `name="website"`（前端 `CommentBoard.tsx`，后端 `isHoneypotTripped()`）；
+- reCAPTCHA 为**可选**：只要 `NEXT_PUBLIC_RECAPTCHA_SITE_KEY` + `RECAPTCHA_SECRET_KEY` 同时存在才启用，同时 `next.config.mjs` 才会放宽 CSP 的 `script-src` / `frame-src`；未配置则保持严格 CSP。
+
 ---
 
 ## 8. 构建 · 验证 · 部署
@@ -292,11 +324,18 @@ curl -s localhost:3000/en | grep -oE '<link rel="alternate" hrefLang="[a-z-]+"' 
 curl -s localhost:3000/en/aircond-wholesale-malaysia | grep -oE '"@type":"[^"]*"'
 curl -s localhost:3000/en/brands/tcl | grep -oE '"@type":"[^"]*"'
 curl -s localhost:3000/en/products/<slug> | grep -oE '"@type":"[^"]*"'   # 含 Product/Offer/Brand
+# About 三大模块
+curl -s -o /dev/null -w "%{http_code}\n" localhost:3000/en/about localhost:3000/bm/about localhost:3000/zh/about   # 均 200
+curl -s "localhost:3000/api/about/awards?lang=en" | head -c 200         # 公开奖项 API
+curl -s -o /dev/null -w "%{http_code}\n" "localhost:3000/api/about/comments?status=pending"  # 403
+curl -s -o /dev/null -w "%{http_code}\n" localhost:3000/api/admin/awards # 401（未鉴权）
+curl -s localhost:3000/en/about | grep -oE 'hrefLang="[a-z-]+"'         # 4 个 alternates
+npm run qa:about                                                        # 77 项验收
 ```
 
 ### 部署（详见 `DEPLOY_STEPS.md`）
 1. **本机执行**（沙箱无法向 GitHub 鉴权）：`git push origin main`
-2. Vercel 环境变量：`DATABASE_URL`、`NEXT_PUBLIC_SITE_URL`、`SUPABASE_SERVICE_ROLE_KEY`（上传持久化必需）
+2. Vercel 环境变量：`DATABASE_URL`（**必须用 pooler 主机 `aws-0-ap-southeast-1.pooler.supabase.com`，见 §9**）、`NEXT_PUBLIC_SITE_URL`、`SUPABASE_SERVICE_ROLE_KEY`（上传持久化必需）、可选 `NEXT_PUBLIC_RECAPTCHA_SITE_KEY` + `RECAPTCHA_SECRET_KEY`
 3. 部署（连 `main` 自动或 `vercel --prod`）
 
 ---
@@ -308,6 +347,10 @@ curl -s localhost:3000/en/products/<slug> | grep -oE '"@type":"[^"]*"'   # 含 P
 - **一条 FAQ 的 DB 答案仍含 "Topaire"**：该品牌是真实历史 SKU，表述属实，不算假数据，但是与 8 品牌文案唯一的轻微不一致。如需一致可修剪该 FAQ 行，或把 Mitsubishi Electric / Topaire 作为真实品牌插入 `brands` 表（品牌页会自动生成）。
 - 沙箱 `git push` 被 Git Credential Manager 浏览器鉴权拦截，只能由用户本机已登录 GitHub 的终端执行。
 - 品牌列表（8 个）来源为 DB `brands` 表 + `llms.txt` 实时读取；若后台增删品牌，无需改代码。
+- **Supabase 直连主机名 `db.<ref>.supabase.co` 已无法解析**（`ENOTFOUND`）。`DATABASE_URL` 必须走连接池：`postgresql://postgres.<ref>:<pw>@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres`。`.env` / `.env.local` 已切换并保留原值注释；**Vercel 上的环境变量也必须同步改**，否则线上同样 500。
+- `readJsonBody()`（`src/lib/apiGuard.ts`）对嵌套对象/数组字段用 `JSON.stringify` 再序列化，下游 `JSON.parse(str(body.items))` 才能用；**不要**改回 `String(v)`（会得到 `"[object Object]"`）。
+- `POST /api/admin/gallery` 的 `items` 是 JSON 字符串（非真数组）；`DELETE /api/admin/gallery` 支持批量（需 moderator 角色）。
+- `Response.text()` 会**剥离 UTF-8 BOM**，验证 CSV BOM 必须用 `arrayBuffer()` 看原始字节 `ef bb bf`。
 
 ---
 
@@ -328,6 +371,85 @@ curl -s localhost:3000/en/products/<slug> | grep -oE '"@type":"[^"]*"'   # 含 P
 - `src/messages/{en,bm,zh}.json`
 
 **配套文档**：`GEO_AUDIT_REPORT.md`（17 项审计 + 13 项交付清单）、`DEPLOY_STEPS.md`（上线步骤）。
+
+---
+
+## 11. About 页三大模块（奖项 / 相册 / 留言板）
+
+在原有 About Us 页面上新增的三块内容 + 对应后台，**全部三语（EN / BM / 中文）**。
+
+### 11.1 数据表（4 张，已应用到 Supabase 生产库）
+
+| 表 | 用途 | 关键字段 |
+|---|---|---|
+| `awards` | 奖项主体 | `slug`(UNIQUE) · `year` / `award_date` · `title_en/_bm/_zh` · `issuer_en/_bm/_zh` · `summary_*`（列表简述）· `story_*`（拿奖故事全文）· `cover_image` / `cover_thumb` · `seo_title_*` / `seo_desc_*` · `sort_order` · `is_published` |
+| `award_media` | 奖项图片（多图/排序/封面） | `award_id` · `file_path` · `thumb_path` · `alt_en/_bm/_zh` · `caption_*` · `sort_order` · `is_cover` |
+| `gallery` | 相册照片 | `file_path` · `thumb_path` · `title_*` · `caption_*` · `alt_*` · `event_name` / `taken_year` · `sort_order` · `is_cover` · `is_published` |
+| `comments` | 留言（**默认 `pending`，审核后才公开**） | `name` · `email` · `phone` · `content` · `rating`(1–5) · `award_id` · `status`(`pending`/`approved`/`rejected`/`spam`) · `ip` · `created_at` |
+
+- 单一真相来源：`scripts/supabase-schema.sql`（已追加这 4 张表 + 6 个索引）
+- 迁移脚本：`scripts/migrations/2026-09-19-about-modules.sql`（可重复执行）
+- 执行方式：`npm run db:migrate -- scripts/migrations/2026-09-19-about-modules.sql`（`scripts/apply-migration.mjs` 为通用执行器；`scripts/pg-helper.mjs` 已内置 `.env` 自动加载）
+
+### 11.2 API 一览
+
+**公开（无鉴权）**
+| 路由 | 方法 | 说明 |
+|---|---|---|
+| `/api/about/awards` | GET | `?lang=` 返回已发布奖项 + 本地化字段；`?media=0` 可跳过图片 |
+| `/api/about/awards/[slug]` | GET | 单个已发布奖项，缺失返回 404 |
+| `/api/about/gallery` | GET | `?lang=` `?year=` 返回已发布照片 |
+| `/api/about/comments` | GET | **仅 `status=approved`**，请求其它状态返回 403 |
+| `/api/about/comments` | POST | honeypot → burst 限流 → 窗口限流 → 可选 reCAPTCHA → 校验 → 重复抑制 → 存 `pending` |
+
+**后台（需 Cookie `atora_admin`）**
+| 路由 | 方法 | 说明 |
+|---|---|---|
+| `/api/admin/awards` | GET / POST | 全量（含 media）/ 创建 |
+| `/api/admin/awards/[id]` | GET / PUT / DELETE | 详情 / 部分更新 / 删除（删除需 moderator） |
+| `/api/admin/awards/[id]/media` | GET / POST | 支持传 `items` 数组或单个 `file_path` |
+| `/api/admin/gallery` | GET / POST / PATCH / DELETE | 列表 / 批量新增 / 排序 / **批量删除（需 moderator）** |
+| `/api/admin/gallery/[id]` | PUT / DELETE | 单条更新 / 删除 |
+| `/api/admin/comments` | GET / PATCH / DELETE | 列表（含 email/phone/ip）/ 批量审核 / 批量删除 |
+| `/api/admin/comments/[id]/approve` | PATCH | 批准 |
+| `/api/admin/comments/[id]/reject` | PATCH | 拒绝（`?as=spam` 标为垃圾） |
+| `/api/admin/comments/[id]` | DELETE | 单条删除 |
+| `/api/admin/comments/export` | GET | CSV 导出（UTF-8 BOM + RFC 4180 转义 + 公式注入防护） |
+
+### 11.3 前台组件
+
+| 组件 | 要点 |
+|---|---|
+| `src/components/about/AwardsSection.tsx` | Grid / Timeline 双布局切换；卡片含奖牌图、名称、年份、颁发机构、简述；"阅读拿奖故事"弹窗支持 Esc 关闭、锁定背景滚动、聚焦关闭按钮、缩略图导航 |
+| `src/components/about/PhotoWall.tsx` | CSS `columns-*` Masonry（**手机端无横向滚动**）；Lightbox 支持 ← → Esc；图片 `loading="lazy"` + `decoding="async"` |
+| `src/components/about/CommentBoard.tsx` | 表单（姓名/邮箱/电话/留言/评分/关联奖项）+ honeypot `name="website"` + 可选 reCAPTCHA（`render=explicit`）；列表只渲染已批准留言，**纯文本渲染（React 自动转义）**，分页 + 最新/最早排序 |
+
+`src/app/[lang]/about/page.tsx` 为整合页：服务端解析 locale 后把**纯字符串**传给客户端组件；JSON-LD 额外注入 `ItemList`（奖项列表）。
+
+### 11.4 奖项详情页 SEO
+
+`src/app/[lang]/about/awards/[slug]/page.tsx`
+- `generateMetadata` 用 `buildPageMetadata({..., type:'article', indexable})`，title/description 优先取 `seo_title_*` / `seo_desc_*`，缺失则 `noindex`；
+- JSON-LD：`BreadcrumbList` + `CreativeWork`（奖项）+ `WebPage`；
+- `sitemap.xml` 已通过 `data.listPublishedAwards()` 输出 `/about/awards/<slug>` 及 lastmod。
+
+### 11.5 安全要点
+
+- **XSS**：留言存为纯文本；`sanitizePlainText()` 移除 HTML 标签、`<script>`/`<style>` 块与控制字符，并**解码实体后二次剥离**（防 `&lt;script&gt;` 绕过）；输出端 React 自动转义。
+- **隐私**：邮箱 / 电话 / IP **只在后台可见**，公开 API 与前台组件都不返回。
+- **限流**：进程内滑动窗口 `rateLimit(key, limit, windowSeconds)`。
+- **CSV**：导出前对 `=` `+` `-` `@` 开头的内容加 `'` 前缀，防 Excel 公式注入。
+- **权限**：`requireAdmin()` 校验登录；`requireModeratorRole()` 进一步限制为 `admin` / `superadmin`（删除内容、审核留言）。
+- **CSP**：`next.config.mjs` 仅在配置了 reCAPTCHA 密钥时才放宽 `script-src` / `frame-src` / `connect-src`。
+
+### 11.6 验收测试
+
+```bash
+npm run qa:about     # scripts/qa-about-modules.mjs
+```
+77 项端到端断言，覆盖奖项 CRUD、图片排序与封面、相册排序、留言审核流转、XSS 剥离、honeypot、限流 429、CSV BOM、三语 SEO、权限矩阵，**并在末尾清理测试数据还原到 baseline**。
+
+> 鉴权测试需要会话 Cookie，可用 `node scripts/mint-session.mjs` 签发（PostgreSQL 版，替代旧的 better-sqlite3 `mint-session.cjs`）。
 
 ---
 

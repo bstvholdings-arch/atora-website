@@ -61,10 +61,11 @@ function isoDate(v: unknown): string | undefined {
 }
 
 export async function GET() {
-  const [products, brands, partners] = await Promise.all([
+  const [products, brands, partners, awards] = await Promise.all([
     data.listActiveProducts(),
     data.listActiveBrands(),
     data.listActivePartners(),
+    data.listPublishedAwards(),
   ]);
 
   const entries: Entry[] = [];
@@ -111,6 +112,16 @@ export async function GET() {
   // ---- Technical partners -------------------------------------------
   for (const tp of partners) {
     entries.push({ path: `/technical-partners/${tp.slug}`, priority: 0.5, changefreq: 'monthly' });
+  }
+
+  // ---- Awards (About Us) --------------------------------------------
+  for (const a of awards) {
+    entries.push({
+      path: `/about/awards/${a.slug}`,
+      priority: 0.5,
+      changefreq: 'monthly',
+      lastmod: isoDate(a.updated_at ?? a.created_at),
+    });
   }
 
   // ---- Service-area / location entity pages (GEO V2 §6) --------------

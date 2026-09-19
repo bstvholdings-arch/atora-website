@@ -19,16 +19,20 @@ import {
 } from '@/lib/actions';
 
 export const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
-export const ALLOWED_PHOTO_EXT = ['jpg', 'jpeg', 'png', 'gif'];
+export const ALLOWED_PHOTO_EXT = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
 
-/** Client-side half of the 双重校验 (server re-checks in /api/upload). */
-export function validatePhotoFile(file: File): string | null {
+/**
+ * Client-side half of the 双重校验 (server re-checks in /api/upload).
+ * `maxBytes` can be raised for callers that compress the image in the browser
+ * before uploading (see `src/lib/imageCompress.ts`).
+ */
+export function validatePhotoFile(file: File, maxBytes: number = MAX_PHOTO_BYTES): string | null {
     const ext = (file.name.split('.').pop() ?? '').toLowerCase();
     if (!ALLOWED_PHOTO_EXT.includes(ext)) {
-        return `${file.name}: only JPG, PNG or GIF allowed`;
+        return `${file.name}: only JPG, PNG, GIF or WEBP allowed`;
     }
-    if (file.size > MAX_PHOTO_BYTES) {
-        return `${file.name}: ${(file.size / 1024 / 1024).toFixed(1)}MB exceeds the 5MB limit`;
+    if (file.size > maxBytes) {
+        return `${file.name}: ${(file.size / 1024 / 1024).toFixed(1)}MB exceeds the ${(maxBytes / 1024 / 1024).toFixed(0)}MB limit`;
     }
     return null;
 }

@@ -14,13 +14,12 @@ export const dynamic = 'force-dynamic';
 const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(process.cwd(), 'public', 'uploads');
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 const MAX_VIDEO_BYTES = 50 * 1024 * 1024;
-const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 const ALLOWED_IMAGE_MIME = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/jpg']);
 const ALLOWED_VIDEO_MIME = new Set(['video/mp4', 'video/quicktime', 'video/webm']);
-const ALLOWED_PHOTO_MIME = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/jpg']);
+const ALLOWED_PHOTO_MIME = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/jpg', 'image/webp']);
 const ALLOWED_IMAGE_EXT = new Set(['.jpg', '.jpeg', '.png', '.webp']);
 const ALLOWED_VIDEO_EXT = new Set(['.mp4', '.mov', '.webm']);
-const ALLOWED_PHOTO_EXT = new Set(['.jpg', '.jpeg', '.png', '.gif']);
+const ALLOWED_PHOTO_EXT = new Set(['.jpg', '.jpeg', '.png', '.gif', '.webp']);
 
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
@@ -52,13 +51,13 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: false, error: 'Image too large (max 8MB)' }, { status: 400 });
       }
     } else if (kind === 'photo') {
-      // Product album / About gallery: JPG, PNG or GIF only, max 5MB.
+      // Product album / About gallery / awards: JPG, PNG, GIF or WEBP, max 8MB.
       // (Client also validates — this is the second half of the 双重校验.)
       if (!ALLOWED_PHOTO_MIME.has(file.type) || !ALLOWED_PHOTO_EXT.has(ext)) {
-        return NextResponse.json({ ok: false, error: 'Only JPG, PNG or GIF allowed' }, { status: 400 });
+        return NextResponse.json({ ok: false, error: 'Only JPG, PNG, GIF or WEBP allowed' }, { status: 400 });
       }
-      if (file.size > MAX_PHOTO_BYTES) {
-        return NextResponse.json({ ok: false, error: 'Photo too large (max 5MB)' }, { status: 400 });
+      if (file.size > MAX_IMAGE_BYTES) {
+        return NextResponse.json({ ok: false, error: 'Photo too large (max 8MB)' }, { status: 400 });
       }
     } else {
       if (!ALLOWED_VIDEO_MIME.has(file.type) || !ALLOWED_VIDEO_EXT.has(ext)) {

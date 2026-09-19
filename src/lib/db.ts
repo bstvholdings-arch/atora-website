@@ -363,3 +363,113 @@ export type AboutPhoto = {
   is_primary: number;
   created_at: string;
 };
+
+/* ============================================================
+ * About Us modules — awards / photo wall / comment board
+ * ============================================================ */
+
+/** An award or medal. All text fields are tri-lingual (en / bm / zh). */
+export type Award = {
+  id: number;
+  slug: string;
+  year: string | null;
+  award_date: string | null;
+  title_en: string;
+  title_bm: string | null;
+  title_zh: string | null;
+  issuer_en: string | null;
+  issuer_bm: string | null;
+  issuer_zh: string | null;
+  summary_en: string | null;
+  summary_bm: string | null;
+  summary_zh: string | null;
+  story_en: string | null;
+  story_bm: string | null;
+  story_zh: string | null;
+  cover_image: string | null;
+  cover_thumb: string | null;
+  seo_title_en: string | null;
+  seo_title_bm: string | null;
+  seo_title_zh: string | null;
+  seo_desc_en: string | null;
+  seo_desc_bm: string | null;
+  seo_desc_zh: string | null;
+  sort_order: number;
+  is_published: number;
+  created_at?: string;
+  updated_at?: string;
+};
+
+/** A medal / trophy / certificate photo belonging to an award. */
+export type AwardMedia = {
+  id: number;
+  award_id: number;
+  type: string;
+  file_path: string;
+  thumb_path: string | null;
+  caption_en: string | null;
+  caption_bm: string | null;
+  caption_zh: string | null;
+  alt_en: string | null;
+  alt_bm: string | null;
+  alt_zh: string | null;
+  is_cover: number;
+  sort_order: number;
+  created_at?: string;
+};
+
+/** A photo on the About Us activity / award photo wall. */
+export type GalleryItem = {
+  id: number;
+  title_en: string | null;
+  title_bm: string | null;
+  title_zh: string | null;
+  caption_en: string | null;
+  caption_bm: string | null;
+  caption_zh: string | null;
+  alt_en: string | null;
+  alt_bm: string | null;
+  alt_zh: string | null;
+  year: string | null;
+  event_name: string | null;
+  file_path: string;
+  thumb_path: string | null;
+  sort_order: number;
+  is_cover: number;
+  is_published: number;
+  created_at?: string;
+};
+
+export type CommentStatus = 'pending' | 'approved' | 'rejected' | 'spam';
+
+/** A visitor message / blessing / testimonial. Only `approved` is public. */
+export type Comment = {
+  id: number;
+  parent_id: number | null;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  message: string;
+  rating: number | null;
+  language: string | null;
+  page: string | null;
+  award_id: number | null;
+  status: string;
+  ip: string | null;
+  user_agent: string | null;
+  created_at: string;
+};
+
+/** Public shape of a comment — email / phone / ip / user_agent stripped. */
+export type PublicComment = {
+  id: number;
+  name: string;
+  message: string;
+  rating: number | null;
+  language: string | null;
+  award_id: number | null;
+  award_title_en: string | null;
+  award_title_bm: string | null;
+  award_title_zh: string | null;
+  created_at: string;
+};
